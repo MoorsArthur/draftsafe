@@ -166,7 +166,8 @@ human clicking Send could.
 This is checked on the **built** XPI by `test/bridge-permissions.test.ts`: the manifest's
 permission set is compared to an exact allow-list; every MailExtension function the bridge
 calls is mapped to the permissions Thunderbird requires for it and cross-checked against
-the installed Thunderbird's own API schemas; every file in the bundle is scanned for send,
+the installed Thunderbird's own API schemas (read from its `omni.ja`; skipped when no
+Thunderbird is found); every file in the bundle is scanned for send,
 forward, move, delete, compose-window, XPCOM mail service, cross-extension messaging and
 dynamic-code patterns; and every route is fuzzed through the real background page against
 a fake Thunderbird whose send, move and delete functions are spies. The smoke test also
@@ -244,7 +245,8 @@ connection file, your Thunderbird profile, and could install its own add-on.
 
 ## Smoke test
 
-`npm run smoke` (after `npm run build`) starts Thunderbird in a throwaway profile under
+`npm run smoke` (after `npm run build`; needs `xvfb-run` and `xte` from the
+`xautomation` package) starts Thunderbird in a throwaway profile under
 `~/snap/thunderbird/common/tmp-draftsafe-*` with `-no-remote` under `xvfb-run -a`,
 installs both add-ons plus a test-only seeder, and drives the real MCP server against the
 live bridge. It checks listing, search, get, thread, tags, read flags, follow-ups, new and

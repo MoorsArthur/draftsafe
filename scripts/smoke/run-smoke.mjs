@@ -6,7 +6,8 @@
 //
 //   npm run build && node scripts/smoke/run-smoke.mjs [--keep]
 //
-// Requires: xvfb-run, Thunderbird (snap at /snap/bin/thunderbird by default,
+// Requires: xvfb-run, xte (xautomation; quits Thunderbird with Ctrl+Q so
+// shutdown handlers run), Thunderbird (snap at /snap/bin/thunderbird by default,
 // override with THUNDERBIRD=/path). For the snap, the profile must live under
 // ~/snap/thunderbird/common, which is also where the bridge publishes its
 // connection file.
