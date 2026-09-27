@@ -26,6 +26,12 @@ var LIMITS = Object.freeze({
   readTimeoutMs: 10 * 1000,
   // The background page has this long to produce a response.
   handlerTimeoutMs: 90 * 1000,
+  // Responses larger than this are replaced by an error (the background page
+  // enforces the same cap first; this is the privileged backstop).
+  maxResponseBytes: 4 * 1024 * 1024,
+  // A client has this long to read the whole response; then the socket is
+  // closed, so a client that never reads cannot hold a connection slot.
+  writeTimeoutMs: 15 * 1000,
 });
 
 // Headers that must never appear twice: a duplicate is a smuggling or

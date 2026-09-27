@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: MIT
-// Snooze: park a message in a per-account "Snoozed" folder and bring it back
-// to the Inbox, unread, when it is due. Records are keyed by account +
-// Message-ID because numeric message ids change on move and restart.
+// Snooze (user feature): park a message in the account's dedicated "Snoozed"
+// folder and bring it back to the Inbox, unread, when it is due.
+//
+// Safety rules, checked immediately before every move:
+//   - the only destinations are the validated Snoozed folder (a top-level,
+//     plain folder named "Snoozed" with no special use) and the account's
+//     Inbox (found by special use, never by name);
+//   - messages in Trash, Junk, Outbox, Drafts, Templates or Sent are never
+//     snoozed (a scheduled send-later draft must stay where it is);
+//   - if the Inbox cannot be found, the message stays in Snoozed.
+// Records are keyed by account + Message-ID because numeric message ids
+// change on move and restart.
 
+import { accountIdOf } from "../../../shared/lib/mail.js";
 import { STORAGE_KEYS } from "../lib/constants.js";
 import { recordKey } from "../lib/store.js";
-import { accountIdOf, ensureSnoozeFolder, findInFolder, findSpecialFolder } from "../lib/mail.js";
+import { ensureSnoozeFolder, findAllInFolder, findInbox, hasUnsafeUse, validateSnoozeFolder } from "../lib/folders.js";
 
 const KEY = STORAGE_KEYS.snoozes;
 const MAX_AHEAD_MS = 366 * 24 * 60 * 60 * 1000;
@@ -13,7 +23,19 @@ const MAX_AHEAD_MS = 366 * 24 * 60 * 60 * 1000;
 // record is dropped (the user deleted or moved it by hand).
 const ORPHAN_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function createSnooze({ api, store, now = () => new Date() }) {
+function validRecord(r) {
+  return (
+    r &&
+    typeof r.key === "string" &&
+    typeof r.accountId === "string" &&
+    typeof r.headerMessageId === "string" &&
+    typeof r.snoozeFolderId === "string" &&
+    r.key === recordKey(r.accountId, r.headerMessageId) &&
+    Number.isFinite(new Date(r.until).getTime())
+  );
+}
+
+export function createSnooze({ api, store, notify = () => {}, now = () => new Date() }) {
   let waking = null;
 
   async function snoozeOne(messageId, until) {
@@ -21,10 +43,12 @@ export function createSnooze({ api, store, now = () => new Date() }) {
     if (!header || header.external || !header.folder) {
       throw new Error(`message ${messageId} cannot be snoozed`);
     }
+    if (hasUnsafeUse(header.folder)) {
+      throw new Error("messages in Trash, Junk, Outbox, Drafts, Templates or Sent cannot be snoozed");
+    }
     const accountId = accountIdOf(header);
     const folder = await ensureSnoozeFolder(api, accountId);
     const key = recordKey(accountId, header.headerMessageId);
-    const existing = await store.get(KEY, key);
     const record = {
       key,
       accountId,
@@ -34,9 +58,6 @@ export function createSnooze({ api, store, now = () => new Date() }) {
       until: until.toISOString(),
       snoozedAt: now().toISOString(),
       snoozeFolderId: folder.id,
-      // Keep the first origin if a snoozed message is re-snoozed.
-      originalFolderId:
-        existing && header.folder.id === folder.id ? existing.originalFolderId : header.folder.id,
     };
     // Store first: if the move fails we drop the record again, but if we
     // crashed after the move without a record, the message would be stranded.
@@ -66,19 +87,26 @@ export function createSnooze({ api, store, now = () => new Date() }) {
   }
 
   async function wakeRecord(record) {
-    const msg = await findInFolder(api, record.snoozeFolderId, record.headerMessageId);
-    if (!msg) {
+    // Re-validate the source: it must still be this account's plain Snoozed folder.
+    await validateSnoozeFolder(api, record.accountId, record.snoozeFolderId);
+    const hits = await findAllInFolder(api, record.snoozeFolderId, record.headerMessageId);
+    if (!hits.length) {
       if (now().getTime() - new Date(record.until).getTime() > ORPHAN_AFTER_MS) {
         await store.remove(KEY, record.key);
       }
       return false;
     }
-    const inbox = await findSpecialFolder(api, record.accountId, "inbox");
-    const destination = inbox ? inbox.id : record.originalFolderId;
-    // Mark unread before the move: the flag travels with the message, and the
-    // moved copy gets a new id we would otherwise have to look up again.
-    await api.messages.update(msg.id, { read: false });
-    await api.messages.move([msg.id], destination);
+    const inbox = await findInbox(api, record.accountId);
+    if (!inbox) {
+      notify("Snooze", `"${record.subject || "(no subject)"}" is due, but no Inbox was found. It stays in Snoozed.`);
+      return false;
+    }
+    for (const msg of hits) {
+      // Mark unread before the move: the flag travels with the message, and
+      // the moved copy gets a new id we would otherwise have to look up again.
+      await api.messages.update(msg.id, { read: false });
+      await api.messages.move([msg.id], inbox.id);
+    }
     await store.remove(KEY, record.key);
     return true;
   }
@@ -88,7 +116,16 @@ export function createSnooze({ api, store, now = () => new Date() }) {
       return waking;
     }
     waking = (async () => {
-      const due = (await store.list(KEY)).filter(r => new Date(r.until).getTime() <= now().getTime());
+      const t = now().getTime();
+      const due = [];
+      for (const [mapKey, record] of Object.entries(await store.readMap(KEY))) {
+        if (!validRecord(record) || record.key !== mapKey) {
+          // Malformed or tampered record: drop it, never act on it.
+          await store.remove(KEY, mapKey);
+        } else if (new Date(record.until).getTime() <= t) {
+          due.push(record);
+        }
+      }
       let woken = 0;
       for (const record of due) {
         try {
@@ -109,13 +146,13 @@ export function createSnooze({ api, store, now = () => new Date() }) {
   }
 
   async function list() {
-    const all = await store.list(KEY);
+    const all = (await store.list(KEY)).filter(validRecord);
     return all.sort((a, b) => new Date(a.until) - new Date(b.until));
   }
 
   async function unsnooze(key) {
     const record = await store.get(KEY, key);
-    if (!record) {
+    if (!validRecord(record) || record.key !== key) {
       return false;
     }
     return wakeRecord(record);

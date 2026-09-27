@@ -9,9 +9,22 @@
 //   4. POST only, /v1/<route> from the fixed route table           (surface)
 //   5. application/json, UTF-8, JSON object body                  (input)
 // Body size is already capped by the experiment before we see it.
+//
+// Resource bounds (independent of sockets, which the experiment bounds):
+//   - at most MAX_IN_FLIGHT route handlers run at once; a permit is held until
+//     the handler's promise settles, not until the socket times out, so
+//     timed-out requests cannot pile up work;
+//   - each handler gets a deadline and stops between steps once it passes;
+//   - responses larger than MAX_RESPONSE_BYTES are replaced by an error.
+// Internal errors are reported with a fixed text: exception messages can
+// contain mailbox-derived strings and are only logged locally.
 
 import { allowedHosts, timingSafeEqual } from "./security.js";
-import { BridgeError } from "./validate.js";
+import { BridgeError, createDeadline } from "./validate.js";
+
+export const MAX_IN_FLIGHT = 4;
+export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // keep equal to framing.js LIMITS.maxResponseBytes
+export const HANDLER_BUDGET_MS = 80 * 1000; // below framing.js LIMITS.handlerTimeoutMs (90 s)
 
 const ROUTE_RE = /^\/v1\/([a-z][A-Za-z]{0,30}(?:\.[a-z][A-Za-z]{0,30})?)$/;
 
@@ -47,7 +60,18 @@ function decodeBody(binary) {
  * @param {() => ({port: number, token: string} | null)} deps.getSecrets
  * @param {Record<string, (params: object) => Promise<unknown>>} deps.routes
  */
-export function createRequestHandler({ getSecrets, routes }) {
+export function createRequestHandler({ getSecrets, routes, now = () => Date.now() }) {
+  let inFlight = 0;
+
+  function respond(payload) {
+    const body = JSON.stringify(payload);
+    // UTF-8 length without allocating: at most 3 bytes per UTF-16 unit.
+    if (body.length * 3 > MAX_RESPONSE_BYTES && new TextEncoder().encode(body).length > MAX_RESPONSE_BYTES) {
+      return fail(500, "result_too_large", "the result is too large; ask for fewer messages or a smaller body limit");
+    }
+    return { status: 200, body };
+  }
+
   return async function handle(req) {
     const secrets = getSecrets();
     if (!secrets) {
@@ -86,15 +110,21 @@ export function createRequestHandler({ getSecrets, routes }) {
       return fail(400, "bad_request", e instanceof BridgeError ? e.message : "body is not valid UTF-8 JSON");
     }
 
+    if (inFlight >= MAX_IN_FLIGHT) {
+      return fail(503, "busy", "too many requests in progress; try again shortly");
+    }
+    inFlight++;
     try {
-      const result = await routes[name](params);
-      return json(200, { ok: true, result });
+      const result = await routes[name](params, createDeadline(HANDLER_BUDGET_MS, now));
+      return respond({ ok: true, result });
     } catch (e) {
       if (e instanceof BridgeError) {
         return fail(e.status, e.code, e.message);
       }
       console.error(`draftsafe: route ${name} failed`, e);
-      return fail(500, "internal", String((e && e.message) || e).slice(0, 500));
+      return fail(500, "internal", "Thunderbird reported an error; see the Thunderbird error console for details");
+    } finally {
+      inFlight--;
     }
   };
 }

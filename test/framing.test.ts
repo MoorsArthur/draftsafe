@@ -5,7 +5,7 @@ const f = loadFraming();
 
 const req = (head: string, body = "") => `${head}\r\n\r\n${body}`;
 
-describe("experiment framing (addon/api/bridge/framing.js)", () => {
+describe("experiment framing (addons/bridge/api/framing.js)", () => {
   it("frames a complete POST request", () => {
     const body = '{"a":1}';
     const r = f.frameRequest(

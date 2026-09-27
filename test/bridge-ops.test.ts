@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { createMailOps } from "../addon/src/bridge/ops.js";
-import { createRoutes } from "../addon/src/bridge/routes.js";
+import { describe, expect, it, vi } from "vitest";
+import { createMailOps } from "../addons/bridge/src/bridge/ops.js";
+import { createRoutes } from "../addons/bridge/src/bridge/routes.js";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 
 function setup(opts: { withSaveMessage?: boolean } = {}) {
   const fake = createFakeMessenger({ pageSize: 2, ...opts });
   const ops = createMailOps({ api: fake.api });
-  const routes = createRoutes({ ops, snooze: {} as never, followups: {} as never, version: "t" });
+  const routes = createRoutes({ ops, version: "t" });
   return { fake, ops, routes };
 }
 
@@ -119,16 +119,71 @@ describe("bridge mail operations", () => {
     expect(fake.composeTabs.size).toBe(0);
   });
 
-  it("creates reply drafts that quote the original and keep reply recipients", async () => {
+  it("creates reply drafts through beginReply details only (no compose permission needed)", async () => {
     const { fake, routes } = setup({ withSaveMessage: true });
-    const orig = fake.addMessage({ folderId: "account1://INBOX", subject: "Question", text: "Can you?" });
-    await routes["drafts.create"]({ replyToMessageId: orig.id, body: "Yes <b>I</b> can", replyAll: true });
-    expect(fake.api.compose.beginReply).toHaveBeenCalledWith(orig.id, "replyToAll");
-    const set = fake.api.compose.setComposeDetails.mock.calls[0][1];
-    expect(set.body).toContain("<p>Yes &lt;b&gt;I&lt;/b&gt; can</p>");
-    expect(set.body).toContain("<blockquote>Can you?</blockquote>");
-    expect(set.to).toBeUndefined();
+    const orig = fake.addMessage({ folderId: "account1://INBOX", subject: "Question", text: "Can you?", headerMessageId: "q@x" });
+    const r: any = await routes["drafts.create"]({ replyToMessageId: orig.id, body: "Yes <b>I</b> can", replyAll: true });
+    expect(fake.api.compose.beginReply).toHaveBeenCalledTimes(1);
+    const [id, type, details] = fake.api.compose.beginReply.mock.calls[0] as unknown as [number, string, any];
+    expect([id, type]).toEqual([orig.id, "replyToAll"]);
+    expect(details.isPlainText).toBe(true);
+    expect(details.plainTextBody).toMatch(/^Yes <b>I<\/b> can\n\nOn .* wrote:\n> Can you\?\n$/);
+    expect(details.to).toBeUndefined();
+    // Never touched: reading or editing compose windows needs "compose".
+    expect(fake.api.compose.getComposeDetails).not.toHaveBeenCalled();
+    expect(fake.api.compose.setComposeDetails).not.toHaveBeenCalled();
+    expect(fake.api.compose.saveMessage).toHaveBeenCalledWith(expect.any(Number), { mode: "draft" });
     expect(fake.api.tabs.remove).toHaveBeenCalled();
+    expect(r.draft.folder.id).toBe("account1://Drafts");
+    const saved = [...fake.messages.values()].find(m => m.folderId === "account1://Drafts")!;
+    expect(saved.headers?.["In-Reply-To"]).toEqual(["<q@x>"]);
+  });
+
+  it("closes the reply compose window even when saving fails", async () => {
+    const { fake, routes } = setup({ withSaveMessage: true });
+    const orig = fake.addMessage({ folderId: "account1://INBOX", subject: "Q", text: "x" });
+    fake.api.compose.saveMessage.mockRejectedValueOnce(new Error("disk full"));
+    await expect(routes["drafts.create"]({ replyToMessageId: orig.id, body: "y" })).rejects.toThrow(/disk full/);
+    expect(fake.api.tabs.remove).toHaveBeenCalled();
+  });
+
+  it("follow-ups are tag-only: set, list, clear", async () => {
+    const { fake, routes } = setup();
+    const m = fake.addMessage({ folderId: "account1://INBOX", subject: "Chase" });
+    expect(await routes["followups.set"]({ messageId: m.id })).toEqual({ messageId: m.id, open: true });
+    expect(fake.messages.get(m.id)!.tags).toContain("draftsafe_followup");
+    const l: any = await routes["followups.list"]({});
+    expect(l.followups.map((f: any) => f.subject)).toEqual(["Chase"]);
+    await routes["followups.set"]({ messageId: m.id, done: true });
+    expect(fake.messages.get(m.id)!.tags).not.toContain("draftsafe_followup");
+    await expect(routes["followups.set"]({ messageId: m.id, due: "2030-01-01" })).rejects.toThrow(/unknown parameter/);
+  });
+
+  it("caps HTML input before conversion and caps metadata lists", async () => {
+    const { fake, routes } = setup();
+    const convert = vi.fn(async (h: string) => h);
+    fake.api.messengerUtilities = { convertToPlainText: convert };
+    const m = fake.addMessage({
+      folderId: "account1://INBOX",
+      subject: "S".repeat(5000),
+      html: "<p>" + "x".repeat(3_000_000) + "</p>",
+      recipients: Array.from({ length: 500 }, (_, i) => `r${i}@x`),
+    });
+    const r: any = await routes["messages.get"]({ messageId: m.id, maxBodyChars: 1000 });
+    expect(convert.mock.calls[0][0].length).toBeLessThanOrEqual(1001 * 8);
+    expect(r.body.text.length).toBe(1000);
+    expect(r.message.subject.length).toBeLessThanOrEqual(1001);
+    expect(r.message.recipients).toHaveLength(51);
+    expect(r.message.recipients[50]).toMatch(/450 more/);
+  });
+
+  it("stops mutating once the request deadline has passed", async () => {
+    const { fake, routes } = setup();
+    const ids = [1, 2, 3].map(() => fake.addMessage({ folderId: "account1://INBOX", subject: "x" }).id);
+    let checks = 0;
+    const ctx = { check: () => { if (++checks > 1) throw Object.assign(new Error("late"), { code: "timeout" }); } };
+    await expect(routes["messages.markRead"]({ messageIds: ids, read: true }, ctx)).rejects.toThrow(/late/);
+    expect(fake.api.messages.update).toHaveBeenCalledTimes(1);
   });
 
   it("validates draft input", async () => {
@@ -146,8 +201,7 @@ describe("bridge mail operations", () => {
     await expect(routes["messages.markRead"]({ messageIds: [] })).rejects.toThrow(/1 to 100/);
     await expect(routes["messages.search"]({ limit: 1000 })).rejects.toThrow(/between 1 and 100/);
     await expect(routes["accounts.list"]({ x: 1 })).rejects.toThrow(/unknown parameter/);
-    await expect(routes["messages.snooze"]({ messageId: 1, preset: "someday" })).rejects.toThrow(/preset/);
-    await expect(routes["messages.snooze"]({ messageId: 1 })).rejects.toThrow(/required/);
+    expect((routes as any)["messages.snooze"]).toBeUndefined();
   });
 
   it("lists accounts with flattened folders and tags", async () => {

@@ -2,12 +2,14 @@
 // The complete bridge surface. Anything not in this table returns 404.
 //
 // Deliberately absent, and must stay absent: send, send later, forward,
-// reply-and-send, delete, move (other than snooze), archive, filters,
-// contacts, account settings. test/no-send-surface.test.ts enforces this.
+// reply-and-send, delete, move (including snooze), archive, filters,
+// contacts, account settings. The add-on's manifest does not even hold the
+// permissions those would need; test/bridge-permissions.test.ts and
+// test/no-send-surface.test.ts enforce both.
 
-import { snoozePresets, presetById } from "../lib/time.js";
 import {
   BridgeError,
+  NO_DEADLINE,
   messageId,
   messageIds,
   onlyKeys,
@@ -27,7 +29,6 @@ export const ROUTE_NAMES = Object.freeze([
   "messages.thread",
   "messages.setTags",
   "messages.markRead",
-  "messages.snooze",
   "followups.list",
   "followups.set",
   "drafts.create",
@@ -35,7 +36,7 @@ export const ROUTE_NAMES = Object.freeze([
 
 const MAX_BODY_CHARS = 200_000;
 
-export function createRoutes({ ops, snooze, followups, version }) {
+export function createRoutes({ ops, version }) {
   const routes = {
     health: async p => {
       onlyKeys(p, []);
@@ -75,72 +76,40 @@ export function createRoutes({ ops, snooze, followups, version }) {
       return ops.getMessage(messageId(p.messageId), optInt(p, "maxBodyChars", 100, MAX_BODY_CHARS, 20_000));
     },
 
-    "messages.thread": async p => {
+    "messages.thread": async (p, ctx = NO_DEADLINE) => {
       onlyKeys(p, ["messageId", "includeBodies", "maxBodyChars"]);
       return ops.getThread(
         messageId(p.messageId),
         optBool(p, "includeBodies") || false,
-        optInt(p, "maxBodyChars", 100, 50_000, 4_000)
+        optInt(p, "maxBodyChars", 100, 50_000, 4_000),
+        ctx
       );
     },
 
-    "messages.setTags": async p => {
+    "messages.setTags": async (p, ctx = NO_DEADLINE) => {
       onlyKeys(p, ["messageId", "messageIds", "add", "remove"]);
       const add = optStringList(p, "add", 20, 100);
       const remove = optStringList(p, "remove", 20, 100);
       if (!add && !remove) {
         throw new BridgeError("invalid_params", "give add and/or remove");
       }
-      return ops.setTags(messageIds(p), add, remove);
+      return ops.setTags(messageIds(p), add, remove, ctx);
     },
 
-    "messages.markRead": async p => {
+    "messages.markRead": async (p, ctx = NO_DEADLINE) => {
       onlyKeys(p, ["messageId", "messageIds", "read"]);
       const read = optBool(p, "read");
-      return ops.markRead(messageIds(p), read === undefined ? true : read);
-    },
-
-    "messages.snooze": async p => {
-      onlyKeys(p, ["messageId", "messageIds", "until", "preset"]);
-      const ids = messageIds(p);
-      let until = optDate(p, "until");
-      const preset = optString(p, "preset", 32);
-      if (preset) {
-        if (until) {
-          throw new BridgeError("invalid_params", "give either until or preset, not both");
-        }
-        const found = presetById(snoozePresets(new Date()), preset);
-        if (!found) {
-          throw new BridgeError("invalid_params", "preset must be later-today, tomorrow or next-monday");
-        }
-        until = found.when;
-      }
-      if (!until) {
-        throw new BridgeError("invalid_params", "until or preset is required");
-      }
-      try {
-        const records = await snooze.snooze(ids, until);
-        return { snoozed: records.map(r => ({ headerMessageId: r.headerMessageId, until: r.until })) };
-      } catch (e) {
-        throw e instanceof BridgeError ? e : new BridgeError("snooze_failed", String(e.message || e));
-      }
+      return ops.markRead(messageIds(p), read === undefined ? true : read, ctx);
     },
 
     "followups.list": async p => {
       onlyKeys(p, []);
-      return followups.list();
+      return ops.listFollowups();
     },
 
     "followups.set": async p => {
-      onlyKeys(p, ["messageId", "due", "done"]);
-      const id = messageId(p.messageId);
-      if (optBool(p, "done")) {
-        await followups.clear(id);
-        return { messageId: id, open: false };
-      }
-      const due = optDate(p, "due");
-      const record = await followups.set(id, { due: due || null });
-      return { messageId: id, open: true, due: record.due };
+      onlyKeys(p, ["messageId", "done"]);
+      return ops.setFollowup(messageId(p.messageId), !optBool(p, "done"));
     },
 
     "drafts.create": async p => {

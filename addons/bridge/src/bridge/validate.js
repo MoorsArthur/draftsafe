@@ -2,7 +2,7 @@
 // Minimal parameter validation for bridge routes. Unknown keys are rejected so
 // a typo (or an attempt to smuggle e.g. a "send" flag) fails loudly.
 
-import { parseWhen } from "../lib/time.js";
+import { parseWhen } from "../../../shared/lib/time.js";
 
 export class BridgeError extends Error {
   constructor(code, message, status = 400) {
@@ -110,3 +110,22 @@ export function optStringList(params, key, maxItems, maxLen) {
   }
   return list;
 }
+
+/**
+ * Per-request budget. Long operations call check() between steps (per message,
+ * per thread candidate) so a request that already timed out on the socket side
+ * stops doing work, and in particular stops mutating, instead of running on.
+ */
+export function createDeadline(budgetMs, now = () => Date.now()) {
+  const until = now() + budgetMs;
+  return {
+    check() {
+      if (now() > until) {
+        throw new BridgeError("timeout", "the operation ran out of time and was stopped", 504);
+      }
+    },
+  };
+}
+
+/** A deadline that never expires (tests, direct calls). */
+export const NO_DEADLINE = Object.freeze({ check() {} });

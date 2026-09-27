@@ -10,7 +10,8 @@
  *   3. hand each complete request to the background page via onRequest and
  *      write back whatever {status, body} the background page returns;
  *   4. publishConnection(token) / stop(): write or remove the per-user
- *      connection file (fixed path, dir 0700, file 0600).
+ *      connection file (fixed path, dir 0700, file 0600). Only the record
+ *      this instance wrote is ever removed.
  *
  * It does not parse JSON, check tokens, route requests or touch mail. All of
  * that runs in the unprivileged background page (src/bridge/server.js).
@@ -161,7 +162,18 @@ class BridgeConnection {
     this.responded = true;
     this.done = true;
     dsClearTimeout(this.timer);
-    var bytes = this.server.framing.buildResponse(status, bodyText);
+    var framing = this.server.framing;
+    var limits = this.server.limits;
+    var bytes = framing.buildResponse(status, bodyText);
+    if (bytes.length > limits.maxResponseBytes + limits.maxHeaderBytes) {
+      bytes = framing.buildResponse(
+        500,
+        JSON.stringify({ ok: false, error: { code: "result_too_large", message: "response too large" } })
+      );
+    }
+    // Write deadline: a client that does not read the response loses the
+    // connection instead of holding one of the few slots indefinitely.
+    this.timer = dsSetTimeout(() => this.close(), limits.writeTimeoutMs);
     var source = dsCc["@mozilla.org/io/string-input-stream;1"].createInstance(dsCi.nsIStringInputStream);
     source.setByteStringData(bytes);
     try {
@@ -254,12 +266,39 @@ class BridgeServer {
 }
 
 var dsServer = null;
+// The token this instance published. Several Thunderbird profiles share the
+// connection path; an instance only ever removes the record it wrote itself.
+var dsPublishedToken = null;
 
 async function dsRemoveConnectionFile() {
+  var token = dsPublishedToken;
+  dsPublishedToken = null;
+  if (!token) {
+    return;
+  }
   try {
-    await IOUtils.remove(PathUtils.join(connectionDir(), CONNECTION_FILE), { ignoreAbsent: true });
+    var target = PathUtils.join(connectionDir(), CONNECTION_FILE);
+    var current = JSON.parse(await IOUtils.readUTF8(target));
+    if (current && current.token === token) {
+      await IOUtils.remove(target, { ignoreAbsent: true });
+    }
   } catch {
-    // Best effort.
+    // Absent, unreadable or replaced by another instance: leave it alone.
+  }
+}
+
+function dsRandomName() {
+  // A random v4 UUID; only used to make the temporary file name unpredictable.
+  return Services.uuid.generateUUID().toString().replace(/[{}-]/g, "");
+}
+
+function dsIsSymlink(path) {
+  try {
+    var file = dsCc["@mozilla.org/file/local;1"].createInstance(dsCi.nsIFile);
+    file.initWithPath(path);
+    return file.exists() && file.isSymlink();
+  } catch {
+    return true; // Cannot tell: treat as unsafe.
   }
 }
 
@@ -280,7 +319,7 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
     var getServer = () => {
       if (!dsServer) {
         var framing = {};
-        Services.scriptloader.loadSubScript(extension.rootURI.resolve("api/bridge/framing.js"), framing);
+        Services.scriptloader.loadSubScript(extension.rootURI.resolve("bridge/api/framing.js"), framing);
         dsServer = new BridgeServer(framing);
       }
       return dsServer;
@@ -309,12 +348,24 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
           }
           var dir = connectionDir();
           var isWindows = Services.appinfo.OS === "WINNT";
+          if (dsIsSymlink(dir)) {
+            throw new dsExtensionError("connection directory is a symlink; refusing to use it");
+          }
           await IOUtils.makeDirectory(dir, { createAncestors: true, ignoreExisting: true });
+          var info = await IOUtils.stat(dir);
+          if (info.type !== "directory") {
+            throw new dsExtensionError("connection path is not a directory");
+          }
           if (!isWindows) {
             await IOUtils.setPermissions(dir, 0o700);
           }
           var target = PathUtils.join(dir, CONNECTION_FILE);
-          var tmp = target + ".tmp";
+          if (dsIsSymlink(target)) {
+            throw new dsExtensionError("connection file is a symlink; refusing to replace it");
+          }
+          // Unpredictable temporary name, created exclusively (fails if it
+          // exists), then renamed over the target.
+          var tmp = PathUtils.join(dir, "." + CONNECTION_FILE + "." + dsRandomName() + ".tmp");
           var contents = JSON.stringify({
             version: 1,
             port: server.port,
@@ -325,11 +376,17 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
           });
           // The directory is already 0700, so the brief window before the
           // chmod below does not expose the token to other users.
-          await IOUtils.writeUTF8(tmp, contents, { mode: "overwrite" });
-          if (!isWindows) {
-            await IOUtils.setPermissions(tmp, 0o600);
+          await IOUtils.writeUTF8(tmp, contents, { mode: "create" });
+          try {
+            if (!isWindows) {
+              await IOUtils.setPermissions(tmp, 0o600);
+            }
+            await IOUtils.move(tmp, target);
+          } catch (e) {
+            await IOUtils.remove(tmp, { ignoreAbsent: true }).catch(() => {});
+            throw e;
           }
-          await IOUtils.move(tmp, target);
+          dsPublishedToken = token;
           return { path: target };
         },
 

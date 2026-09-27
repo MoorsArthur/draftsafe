@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: MIT
-// Mail operations exposed through the bridge. Read operations plus the four
-// permitted mutations: tags, read/unread, snooze (via features/snooze.js) and
-// saving a NEW draft. Nothing in this file sends, forwards or deletes mail.
+// Mail operations exposed through the bridge: read operations plus three
+// permitted mutations: tags (incl. the Follow up tag), read/unread, and saving
+// a NEW draft. This add-on holds no permission to send, move or delete mail
+// (see manifest.json and test/bridge-permissions.test.ts), and nothing here
+// calls such an API.
 
-import { FOLLOWUP_TAG_KEY } from "../lib/constants.js";
-import { abortList, queryAll, summarizeFolder, summarizeHeader } from "../lib/mail.js";
-import {
-  normalizeSubject,
-  parseMessageIds,
-  prependToHtmlBody,
-  stripHtml,
-  textToHtml,
-  truncate,
-} from "../lib/text.js";
-import { BridgeError } from "./validate.js";
+import { FOLLOWUP_TAG_KEY } from "../../../shared/lib/constants.js";
+import { createFollowupTag } from "../../../shared/lib/followup-tag.js";
+import { abortList, queryAll, summarizeFolder, summarizeHeader } from "../../../shared/lib/mail.js";
+import { normalizeSubject, parseMessageIds, quoteForReply, stripHtml, truncate } from "../../../shared/lib/text.js";
+import { BridgeError, NO_DEADLINE } from "./validate.js";
 
 const SPECIAL_USES = ["inbox", "drafts", "sent", "trash", "templates", "archives", "junk", "outbox"];
 const CURSOR_TTL_MS = 10 * 60 * 1000;
 const MAX_CURSORS = 16;
 const MAX_FOLDERS = 1000;
+const MAX_FOLLOWUPS = 500;
 const THREAD_MAX_REFS = 30;
 const THREAD_MAX_CANDIDATES = 80;
+// HTML is cut to this many characters per requested output character before
+// conversion, so a huge message cannot make the converter do unbounded work.
+const HTML_INPUT_FACTOR = 8;
+const MAX_HTML_INPUT = 2_000_000;
+const REPLY_QUOTE_CHARS = 20_000;
 
 function randomId() {
   const b = new Uint8Array(12);
@@ -30,6 +32,7 @@ function randomId() {
 
 export function createMailOps({ api, now = () => Date.now() }) {
   const cursors = new Map();
+  const followupTag = createFollowupTag({ api });
 
   function sweepCursors() {
     const t = now();
@@ -81,13 +84,14 @@ export function createMailOps({ api, now = () => Date.now() }) {
     const out = {};
     for (const name of ["message-id", "in-reply-to", "references", "reply-to", "list-id", "date"]) {
       if (all[name]) {
-        out[name] = all[name];
+        out[name] = all[name].slice(0, 10).map(v => v.slice(0, 2000));
       }
     }
     return out;
   }
 
-  async function bodyText(id) {
+  /** Body as plain text, never more than `maxChars` + 1 characters of work output. */
+  async function bodyText(id, maxChars) {
     let parts = [];
     try {
       parts = (await api.messages.listInlineTextParts(id)) || [];
@@ -96,21 +100,22 @@ export function createMailOps({ api, now = () => Date.now() }) {
     }
     const plain = parts.find(p => /^text\/plain/i.test(p.contentType));
     if (plain) {
-      return { text: plain.content || "", sourceType: "text/plain" };
+      return { text: String(plain.content || "").slice(0, maxChars + 1), sourceType: "text/plain" };
     }
     const html = parts.find(p => /^text\/html/i.test(p.contentType));
     if (!html) {
       return { text: "", sourceType: null };
     }
+    const input = String(html.content || "").slice(0, Math.min(MAX_HTML_INPUT, (maxChars + 1) * HTML_INPUT_FACTOR));
     let text = null;
     if (api.messengerUtilities && api.messengerUtilities.convertToPlainText) {
       try {
-        text = await api.messengerUtilities.convertToPlainText(html.content || "");
+        text = await api.messengerUtilities.convertToPlainText(input);
       } catch {
         text = null;
       }
     }
-    return { text: text ?? stripHtml(html.content || ""), sourceType: "text/html" };
+    return { text: (text ?? stripHtml(input)).slice(0, maxChars + 1), sourceType: "text/html" };
   }
 
   async function resolveFolderIds(folder, accountId) {
@@ -124,7 +129,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       }
       const found = await api.folders.query(q);
       if (!found || !found.length) {
-        throw new BridgeError("not_found", `no ${folder} folder found`, 404);
+        throw new BridgeError("not_found", `no ${folder.toLowerCase()} folder found`, 404);
       }
       return found.map(f => f.id);
     }
@@ -214,7 +219,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       const header = await getMessageHeader(id);
       const [headers, body, attachments] = await Promise.all([
         headersOf(id),
-        bodyText(id),
+        bodyText(id, maxBodyChars),
         api.messages.listAttachments(id).catch(() => []),
       ]);
       const { text, truncated } = truncate(body.text, maxBodyChars);
@@ -222,8 +227,8 @@ export function createMailOps({ api, now = () => Date.now() }) {
         message: summarizeHeader(header),
         headers: pickHeaders(headers),
         body: { text, truncated, sourceType: body.sourceType },
-        attachments: attachments.map(a => ({
-          name: a.name,
+        attachments: attachments.slice(0, 100).map(a => ({
+          name: String(a.name || "").slice(0, 500),
           contentType: a.contentType,
           size: a.size,
           partName: a.partName,
@@ -231,7 +236,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       };
     },
 
-    async getThread(id, includeBodies, maxBodyChars) {
+    async getThread(id, includeBodies, maxBodyChars, ctx = NO_DEADLINE) {
       const root = await getMessageHeader(id);
       const accountId = root.folder ? root.folder.accountId : undefined;
       const rootHeaders = await headersOf(id);
@@ -244,6 +249,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       // Ancestors named in References / In-Reply-To.
       for (const ref of [...known].slice(0, THREAD_MAX_REFS)) {
         if (ref === root.headerMessageId) continue;
+        ctx.check();
         const q = { headerMessageId: ref };
         if (accountId) q.accountId = accountId;
         for (const m of await queryAll(api, q, 5)) found.set(m.id, m);
@@ -259,6 +265,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
         for (let pass = 0; pass < 2; pass++) {
           for (const c of candidates) {
             if (found.has(c.id)) continue;
+            ctx.check();
             if (!linkCache.has(c.id)) {
               const h = await headersOf(c.id);
               linkCache.set(c.id, parseMessageIds([...(h.references || []), ...(h["in-reply-to"] || [])]));
@@ -277,7 +284,8 @@ export function createMailOps({ api, now = () => Date.now() }) {
       for (const m of messages) {
         const entry = summarizeHeader(m);
         if (includeBodies) {
-          const body = await bodyText(m.id);
+          ctx.check();
+          const body = await bodyText(m.id, maxBodyChars);
           const t = truncate(body.text, maxBodyChars);
           entry.body = { text: t.text, truncated: t.truncated };
         }
@@ -286,7 +294,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       return { messages: out };
     },
 
-    async setTags(ids, add, remove) {
+    async setTags(ids, add, remove, ctx = NO_DEADLINE) {
       const known = await api.messages.tags.list();
       const resolve = name => {
         const lower = name.toLowerCase();
@@ -303,6 +311,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
       }
       const results = [];
       for (const id of ids) {
+        ctx.check();
         const header = await getMessageHeader(id);
         const tags = new Set(header.tags || []);
         addKeys.forEach(k => tags.add(k));
@@ -313,38 +322,69 @@ export function createMailOps({ api, now = () => Date.now() }) {
       return { updated: results };
     },
 
-    async markRead(ids, read) {
+    async markRead(ids, read, ctx = NO_DEADLINE) {
+      let updated = 0;
       for (const id of ids) {
+        ctx.check();
         await getMessageHeader(id);
         await api.messages.update(id, { read });
+        updated++;
       }
-      return { updated: ids.length, read };
+      return { updated, read };
+    },
+
+    async listFollowups() {
+      const { messages, truncated } = await followupTag.listTagged(MAX_FOLLOWUPS);
+      return { followups: messages.map(summarizeHeader), truncated };
+    },
+
+    async setFollowup(id, open) {
+      await getMessageHeader(id);
+      try {
+        if (open) {
+          await followupTag.add(id);
+        } else {
+          await followupTag.remove(id);
+        }
+      } catch {
+        throw new BridgeError("not_taggable", `message ${id} cannot be tagged`);
+      }
+      return { messageId: id, open };
     },
 
     /**
-     * Saves a NEW draft to the Drafts folder. Never sends. Replies go through
-     * compose.beginReply() so threading headers and quoting are correct; this
-     * briefly opens a compose window, which is closed after saving.
+     * Saves a NEW draft to the Drafts folder. Never sends: this add-on has no
+     * send permission, and compose.saveMessage only accepts the "draft" and
+     * "template" modes.
+     *
+     * New drafts use messages.saveMessage (Thunderbird 153+, no window).
+     * Reply drafts use compose.beginReply so Thunderbird sets In-Reply-To and
+     * References; the body (new text plus a plain-text quote we build
+     * ourselves) is passed as beginReply details, because reading or editing
+     * the compose body would need the broader "compose" permission. The
+     * compose window is closed after saving.
      */
     async createDraft(d) {
       let saved;
       if (d.replyToMessageId) {
-        await getMessageHeader(d.replyToMessageId);
-        const tab = await api.compose.beginReply(d.replyToMessageId, d.replyAll ? "replyToAll" : "replyToSender");
-        const current = await api.compose.getComposeDetails(tab.id);
-        const update = {};
-        if (current.isPlainText) {
-          update.plainTextBody = `${d.body}\n\n${current.plainTextBody || ""}`;
-        } else {
-          update.body = prependToHtmlBody(current.body || "", `${textToHtml(d.body)}\n<br>\n`);
+        const original = await getMessageHeader(d.replyToMessageId);
+        const body = await bodyText(d.replyToMessageId, REPLY_QUOTE_CHARS);
+        const date = original.date instanceof Date ? original.date : new Date(original.date);
+        const when = Number.isNaN(date.getTime()) ? "" : `On ${date.toUTCString()}, `;
+        const details = {
+          isPlainText: true,
+          plainTextBody: quoteForReply(d.body, body.text.slice(0, REPLY_QUOTE_CHARS), `${when}${original.author || "the sender"} wrote:`),
+        };
+        if (d.to) details.to = d.to;
+        if (d.cc) details.cc = d.cc;
+        if (d.bcc) details.bcc = d.bcc;
+        if (d.subject) details.subject = d.subject;
+        const tab = await api.compose.beginReply(d.replyToMessageId, d.replyAll ? "replyToAll" : "replyToSender", details);
+        try {
+          saved = await api.compose.saveMessage(tab.id, { mode: "draft" });
+        } finally {
+          await api.tabs.remove(tab.id).catch(() => {});
         }
-        if (d.to) update.to = d.to;
-        if (d.cc) update.cc = d.cc;
-        if (d.bcc) update.bcc = d.bcc;
-        if (d.subject) update.subject = d.subject;
-        await api.compose.setComposeDetails(tab.id, update);
-        saved = await api.compose.saveMessage(tab.id, { mode: "draft" });
-        await api.tabs.remove(tab.id);
       } else {
         const details = {
           to: d.to || [],
@@ -360,8 +400,11 @@ export function createMailOps({ api, now = () => Date.now() }) {
           saved = await api.messages.saveMessage(details, { mode: "draft" });
         } else {
           const tab = await api.compose.beginNew(undefined, details);
-          saved = await api.compose.saveMessage(tab.id, { mode: "draft" });
-          await api.tabs.remove(tab.id);
+          try {
+            saved = await api.compose.saveMessage(tab.id, { mode: "draft" });
+          } finally {
+            await api.tabs.remove(tab.id).catch(() => {});
+          }
         }
       }
       const draft = saved && saved.messages && saved.messages[0];

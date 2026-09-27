@@ -27,10 +27,12 @@ export interface FakeMessage {
   text?: string;
   html?: string;
   headers?: Record<string, string[]>;
+  ccList?: string[];
+  bccList?: string[];
   attachments?: { name: string; contentType: string; size: number; partName: string }[];
 }
 
-export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?: boolean } = {}) {
+export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?: boolean; extraFolders?: FakeFolder[] } = {}) {
   const pageSize = opts.pageSize ?? 2;
   let nextId = 1;
   let nextTab = 100;
@@ -39,6 +41,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     { id: "account1://Drafts", accountId: "account1", name: "Drafts", path: "/Drafts", specialUse: ["drafts"] },
     { id: "account1://Trash", accountId: "account1", name: "Trash", path: "/Trash", specialUse: ["trash"] },
     { id: "account1://Archive", accountId: "account1", name: "Archive", path: "/Archive", specialUse: ["archives"] },
+    ...(opts.extraFolders ?? []),
   ];
   const root: FakeFolder = { id: "account1://", accountId: "account1", name: "Root", path: "/" };
   const messages = new Map<number, FakeMessage>();
@@ -57,8 +60,8 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     subject: m.subject,
     author: m.author,
     recipients: m.recipients,
-    ccList: [],
-    bccList: [],
+    ccList: m.ccList ?? [],
+    bccList: m.bccList ?? [],
     date: m.date,
     read: m.read,
     flagged: m.flagged,
@@ -90,6 +93,33 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     } as FakeMessage;
     messages.set(msg.id, msg);
     return msg;
+  }
+
+  /** RFC 822 text of a message, with a local-folder X-Mozilla-Status line. */
+  function raw(m: FakeMessage) {
+    const lines = [
+      `X-Mozilla-Status: ${m.read ? "0001" : "0000"}`,
+      `Message-ID: <${m.headerMessageId}>`,
+      `Subject: ${m.subject}`,
+      `From: ${m.author}`,
+      `To: ${m.recipients.join(", ")}`,
+    ];
+    if (m.ccList?.length) lines.push(`Cc: ${m.ccList.join(", ")}`);
+    for (const [k, v] of Object.entries(m.headers ?? {})) lines.push(`${k}: ${v.join(" ")}`);
+    return `${lines.join("\r\n")}\r\n\r\n${m.text ?? m.html ?? ""}`;
+  }
+
+  function saveDraftFrom(d: Record<string, unknown>) {
+    const list = (v: unknown) => ([] as unknown[]).concat(v ?? []).map(String);
+    return addMessage({
+      folderId: "account1://Drafts",
+      subject: String(d.subject ?? ""),
+      text: String(d.plainTextBody ?? d.body ?? ""),
+      recipients: list(d.to),
+      ccList: list(d.cc),
+      bccList: list(d.bcc),
+      headers: d.inReplyTo ? { "In-Reply-To": [`<${d.inReplyTo}>`] } : undefined,
+    });
   }
 
   const forbidden = {
@@ -130,7 +160,14 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
             (!q.specialUse || q.specialUse.every(u => f.specialUse?.includes(u)))
         )
       ),
-      getSubFolders: vi.fn(async (id: string) => (id === root.id ? folders.filter(f => f.accountId === "account1") : [])),
+      get: vi.fn(async (id: string) => {
+        const f = folderById(id);
+        if (!f) throw new Error(`Folder not found: ${id}`);
+        return { ...f };
+      }),
+      getSubFolders: vi.fn(async (id: string) =>
+        id === root.id ? folders.filter(f => f.accountId === "account1" && f.path.split("/").length === 2).map(f => ({ ...f })) : []
+      ),
       create: vi.fn(async (parentId: string, name: string) => {
         const f: FakeFolder = { id: `${parentId}${name}`, accountId: "account1", name, path: `/${name}` };
         folders.push(f);
@@ -195,6 +232,11 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
         return parts;
       }),
       listAttachments: vi.fn(async (id: number) => messages.get(id)?.attachments ?? []),
+      getRaw: vi.fn(async (id: number) => {
+        const m = messages.get(id);
+        if (!m) throw new Error("not found");
+        return raw(m);
+      }),
       getFull: vi.fn(async (id: number) => ({ headers: messages.get(id)?.headers ?? {} })),
       tags: {
         list: vi.fn(async () => tags.map(t => ({ ...t }))),
@@ -208,7 +250,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
       ...(opts.withSaveMessage
         ? {
             saveMessage: vi.fn(async (details: Record<string, unknown>) => {
-              const m = addMessage({ folderId: "account1://Drafts", subject: String(details.subject ?? ""), text: String(details.plainTextBody ?? "") });
+              const m = saveDraftFrom(details);
               return { mode: "draft", messages: [header(m)] };
             }),
             sendMessage: forbidden.messagesSendMessage,
@@ -216,12 +258,17 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
         : {}),
     },
     compose: {
-      beginNew: vi.fn(async (_id?: number, details?: Record<string, unknown>) => {
+      beginNew: vi.fn(async (id?: number, details?: Record<string, unknown>) => {
         const tab = nextTab++;
-        composeTabs.set(tab, { isPlainText: true, plainTextBody: "", subject: "", to: [], ...(details ?? {}) });
+        const from = id ? messages.get(id) : undefined;
+        const base = from
+          ? { isPlainText: true, plainTextBody: from.text ?? "", subject: from.subject, to: from.recipients, cc: from.ccList ?? [], bcc: from.bccList ?? [] }
+          : { isPlainText: true, plainTextBody: "", subject: "", to: [] };
+        composeTabs.set(tab, { ...base, ...(details ?? {}) });
         return { id: tab, type: "messageCompose" };
       }),
-      beginReply: vi.fn(async (id: number) => {
+      // Like Thunderbird: details passed to beginReply replace the auto-quoted body.
+      beginReply: vi.fn(async (id: number, _type?: string, details?: Record<string, unknown>) => {
         const m = messages.get(id)!;
         const tab = nextTab++;
         composeTabs.set(tab, {
@@ -230,6 +277,8 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
           subject: `Re: ${m.subject}`,
           to: [m.author],
           identityId: "id1",
+          inReplyTo: m.headerMessageId,
+          ...(details ?? {}),
         });
         return { id: tab, type: "messageCompose" };
       }),
@@ -239,12 +288,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
         composeTabs.set(tab, { ...composeTabs.get(tab)!, ...d });
       }),
       saveMessage: vi.fn(async (tab: number) => {
-        const d = composeTabs.get(tab)!;
-        const m = addMessage({
-          folderId: "account1://Drafts",
-          subject: String(d.subject ?? ""),
-          text: String(d.plainTextBody ?? d.body ?? ""),
-        });
+        const m = saveDraftFrom(composeTabs.get(tab)!);
         return { mode: "draft", messages: [header(m)] };
       }),
       sendMessage: forbidden.composeSendMessage,
@@ -253,5 +297,5 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     messengerUtilities: undefined as undefined | { convertToPlainText: (html: string) => Promise<string> },
   };
 
-  return { api, messages, folders, composeTabs, storage, addMessage, forbidden, root };
+  return { api, messages, folders, composeTabs, storage, addMessage, forbidden, root, header };
 }

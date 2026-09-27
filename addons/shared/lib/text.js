@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Text helpers used by the bridge. Pure functions.
+// Text helpers. Pure functions.
 
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
@@ -32,30 +32,18 @@ export function stripHtml(html) {
     .trim();
 }
 
-export function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Plain text to a minimal HTML fragment (paragraphs and line breaks). */
-export function textToHtml(text) {
-  return String(text)
-    .split(/\n{2,}/)
-    .map(p => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+/**
+ * Plain-text reply body: the new text, an attribution line, and the original
+ * quoted with "> ". Used because the bridge has no permission to read or edit
+ * Thunderbird's own compose body (it lacks the "compose" permission).
+ */
+export function quoteForReply(newText, originalText, attribution) {
+  const quoted = String(originalText || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => (line.startsWith(">") ? `>${line}` : `> ${line}`))
     .join("\n");
-}
-
-/** Inserts an HTML fragment right after the opening <body> tag (or prepends). */
-export function prependToHtmlBody(html, fragment) {
-  const m = /<body\b[^>]*>/i.exec(html || "");
-  if (!m) {
-    return fragment + (html || "");
-  }
-  const at = m.index + m[0].length;
-  return html.slice(0, at) + fragment + html.slice(at);
+  return `${newText}\n\n${attribution}\n${quoted}\n`;
 }
 
 export function truncate(text, max) {

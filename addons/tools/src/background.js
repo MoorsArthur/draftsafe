@@ -1,54 +1,29 @@
 // SPDX-License-Identifier: MIT
-// Background page: wires the user features (snooze, send later, follow-ups)
-// and the draft-only bridge. Only this file imports features/sendlater.js.
+// draftsafe-tools background page: the user features (snooze, send later,
+// follow-ups). This add-on has no bridge, no Experiment API and no network
+// listener, and it accepts messages only from its own popups. Nothing outside
+// Thunderbird's own UI can reach it.
 
+import { collect } from "../../shared/lib/mail.js";
+import { parseWhen, presetById, sendLaterPresets, snoozePresets, tomorrowMorning, nextMondayMorning } from "../../shared/lib/time.js";
 import { TICK_ALARM } from "./lib/constants.js";
 import { createStore } from "./lib/store.js";
-import { collect } from "./lib/mail.js";
-import { parseWhen, presetById, sendLaterPresets, snoozePresets, tomorrowMorning, nextMondayMorning } from "./lib/time.js";
 import { createSnooze } from "./features/snooze.js";
 import { createFollowups } from "./features/followup.js";
 import { createSendLater } from "./features/sendlater.js";
-import { createMailOps } from "./bridge/ops.js";
-import { createRoutes } from "./bridge/routes.js";
-import { createRequestHandler } from "./bridge/server.js";
-import { generateToken } from "./bridge/security.js";
 
 const api = globalThis.messenger;
-const version = api.runtime.getManifest().version;
 
 function notify(title, message) {
   api.notifications
-    .create({ type: "basic", title: `Draftsafe: ${title}`, message, iconUrl: "icons/draftsafe.svg" })
+    .create({ type: "basic", title: `Draftsafe: ${title}`, message, iconUrl: "tools/icons/draftsafe.svg" })
     .catch(() => {});
 }
 
 const store = createStore(api.storage.local);
-const snooze = createSnooze({ api, store });
+const snooze = createSnooze({ api, store, notify });
 const followups = createFollowups({ api, store });
 const sendLater = createSendLater({ api, store, notify });
-
-// ---------------------------------------------------------------- bridge --
-
-let secrets = null;
-const handleRequest = createRequestHandler({
-  getSecrets: () => secrets,
-  routes: createRoutes({ ops: createMailOps({ api }), snooze, followups, version }),
-});
-api.draftsafeBridge.onRequest.addListener(req => handleRequest(req));
-
-async function startBridge() {
-  try {
-    const token = generateToken();
-    const { port } = await api.draftsafeBridge.start();
-    secrets = { port, token };
-    const { path } = await api.draftsafeBridge.publishConnection(token);
-    console.info(`draftsafe: bridge listening on 127.0.0.1:${port}, connection file ${path}`);
-  } catch (e) {
-    secrets = null;
-    console.error("draftsafe: bridge failed to start", e);
-  }
-}
 
 // ----------------------------------------------------------------- ticks --
 
@@ -107,7 +82,7 @@ function createMenus() {
 }
 
 function openPicker(mode, ids) {
-  const url = api.runtime.getURL(`src/ui/pick-time.html?mode=${mode}&ids=${ids.join(",")}`);
+  const url = api.runtime.getURL(`tools/src/ui/pick-time.html?mode=${mode}&ids=${ids.join(",")}`);
   return api.windows.create({ type: "popup", url, width: 380, height: 260 });
 }
 
@@ -169,7 +144,25 @@ function whenFrom(msg, presets) {
   return d;
 }
 
-const uiBase = api.runtime.getURL("src/ui/");
+const uiBase = api.runtime.getURL("tools/src/ui/");
+
+function idList(v) {
+  if (!Array.isArray(v) || !v.length || v.length > 100 || !v.every(n => Number.isInteger(n) && n > 0)) {
+    throw new Error("invalid message ids");
+  }
+  return v;
+}
+
+function oneId(v) {
+  return idList([v])[0];
+}
+
+function keyOf(v) {
+  if (typeof v !== "string" || !v || v.length > 1100) {
+    throw new Error("invalid key");
+  }
+  return v;
+}
 
 const handlers = {
   "snooze.presets": () => presetList(snoozePresets()),
@@ -181,31 +174,34 @@ const handlers = {
     }
     return snooze.snooze(ids, whenFrom(msg, snoozePresets()));
   },
-  "snooze.ids": msg => snooze.snooze(msg.messageIds, whenFrom(msg, snoozePresets())),
+  "snooze.ids": msg => snooze.snooze(idList(msg.messageIds), whenFrom(msg, snoozePresets())),
   "snooze.list": () => snooze.list(),
-  "snooze.cancel": msg => snooze.unsnooze(msg.key),
+  "snooze.cancel": msg => snooze.unsnooze(keyOf(msg.key)),
   "followup.list": () => followups.list(),
   "followup.setIds": async msg => {
     const due = msg.when ? whenFrom(msg, []) : null;
-    for (const id of msg.messageIds) {
+    for (const id of idList(msg.messageIds)) {
       await followups.set(id, { due });
     }
     await updateBadge();
     return true;
   },
   "followup.done": async msg => {
-    await followups.clear(msg.messageId);
+    await followups.clear(oneId(msg.messageId));
     await updateBadge();
     return true;
   },
-  "followup.open": msg => api.messageDisplay.open({ messageId: msg.messageId, location: "tab" }),
+  "followup.open": msg => api.messageDisplay.open({ messageId: oneId(msg.messageId), location: "tab" }),
   "sendlater.presets": () => presetList(sendLaterPresets()),
   "sendlater.list": () => sendLater.list(),
-  "sendlater.cancel": msg => sendLater.cancel(msg.key),
+  "sendlater.cancel": msg => sendLater.cancel(keyOf(msg.key)),
   "sendlater.schedule": (msg, sender) => {
     // Only the compose-action popup, i.e. a click in the compose window.
     if (!sender.url || !sender.url.startsWith(`${uiBase}sendlater-popup.html`)) {
       throw new Error("send later can only be scheduled from the compose window");
+    }
+    if (!Number.isInteger(msg.tabId)) {
+      throw new Error("invalid tab");
     }
     return sendLater.schedule(msg.tabId, whenFrom(msg, sendLaterPresets()));
   },
@@ -236,8 +232,7 @@ async function main() {
   createMenus();
   api.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
   followups.ensureTag().catch(e => console.error("draftsafe: could not create Follow up tag", e));
-  await startBridge();
   await tick();
 }
 
-main();
+export const ready = main();

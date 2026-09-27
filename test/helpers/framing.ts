@@ -22,7 +22,7 @@ export interface Framing {
 }
 
 export function loadFraming(): Framing {
-  const file = fileURLToPath(new URL("../../addon/api/bridge/framing.js", import.meta.url));
+  const file = fileURLToPath(new URL("../../addons/bridge/api/framing.js", import.meta.url));
   const sandbox: Record<string, unknown> = { unescape, encodeURIComponent };
   vm.createContext(sandbox);
   vm.runInContext(readFileSync(file, "utf8"), sandbox, { filename: file });

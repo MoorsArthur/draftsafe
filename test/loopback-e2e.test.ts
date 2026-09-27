@@ -3,13 +3,10 @@
 // Only the XPCOM socket plumbing of the experiment is replaced (by node:net).
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRoutes } from "../addon/src/bridge/routes.js";
-import { createMailOps } from "../addon/src/bridge/ops.js";
-import { createRequestHandler } from "../addon/src/bridge/server.js";
-import { generateToken } from "../addon/src/bridge/security.js";
-import { createSnooze } from "../addon/src/features/snooze.js";
-import { createFollowups } from "../addon/src/features/followup.js";
-import { createStore } from "../addon/src/lib/store.js";
+import { createRoutes } from "../addons/bridge/src/bridge/routes.js";
+import { createMailOps } from "../addons/bridge/src/bridge/ops.js";
+import { createRequestHandler } from "../addons/bridge/src/bridge/server.js";
+import { generateToken } from "../addons/bridge/src/bridge/security.js";
 import { BridgeClient } from "../mcp/src/bridge-client.js";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 import { rawRequest, startNodeBridge } from "./helpers/node-bridge.js";
@@ -21,13 +18,7 @@ let bridge: Awaited<ReturnType<typeof startNodeBridge>>;
 let client: BridgeClient;
 
 beforeAll(async () => {
-  const store = createStore(fake.api.storage.local);
-  const routes = createRoutes({
-    ops: createMailOps({ api: fake.api }),
-    snooze: createSnooze({ api: fake.api, store }),
-    followups: createFollowups({ api: fake.api, store }),
-    version: "e2e",
-  });
+  const routes = createRoutes({ ops: createMailOps({ api: fake.api }), version: "e2e" });
   bridge = await startNodeBridge(port => createRequestHandler({ getSecrets: () => ({ port, token }), routes }));
   client = new BridgeClient({ loadConnection: async () => ({ port: bridge.port, token, path: "mem" }) });
   fake.addMessage({ folderId: "account1://INBOX", subject: "Quarterly report", text: "Numbers attached" });
@@ -74,6 +65,8 @@ describe("loopback bridge end to end", () => {
   it("has no send endpoint", async () => {
     await expect(client.call("messages.send", { messageId: 1 })).rejects.toMatchObject({ status: 404 });
     await expect(client.call("compose.sendMessage", {})).rejects.toMatchObject({ status: 404 });
+    await expect(client.call("messages.snooze", { messageId: 1, preset: "tomorrow" })).rejects.toMatchObject({ status: 404 });
+    await expect(client.call("messages.delete", { messageId: 1 })).rejects.toMatchObject({ status: 404 });
     for (const spy of Object.values(fake.forbidden)) expect(spy).not.toHaveBeenCalled();
   });
 });

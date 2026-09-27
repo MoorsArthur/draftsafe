@@ -1,0 +1,53 @@
+{
+  "manifest_version": 2,
+  "name": "Draftsafe Tools",
+  "short_name": "Draftsafe Tools",
+  "version": "0.2.0",
+  "description": "Snooze, send later and follow-ups for Thunderbird. Has no bridge, no Experiment API and no network listener: only you can use it, from Thunderbird's own menus and buttons.",
+  "author": "Arthur Moors",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "draftsafe-tools@draftsafe.dev",
+      "strict_min_version": "140.0"
+    }
+  },
+  "icons": {
+    "32": "tools/icons/draftsafe.svg",
+    "64": "tools/icons/draftsafe.svg"
+  },
+  "background": {
+    "page": "tools/background.html",
+    "persistent": true
+  },
+  "permissions": [
+    "accountsRead",
+    "accountsFolders",
+    "messagesRead",
+    "messagesMove",
+    "messagesUpdate",
+    "messagesTags",
+    "messagesTagsList",
+    "compose",
+    "compose.save",
+    "compose.send",
+    "alarms",
+    "menus",
+    "notifications",
+    "storage"
+  ],
+  "message_display_action": {
+    "default_title": "Snooze",
+    "default_icon": "tools/icons/snooze.svg",
+    "default_popup": "tools/src/ui/snooze-popup.html"
+  },
+  "compose_action": {
+    "default_title": "Send later",
+    "default_icon": "tools/icons/sendlater.svg",
+    "default_popup": "tools/src/ui/sendlater-popup.html"
+  },
+  "browser_action": {
+    "default_title": "Follow-ups",
+    "default_icon": "tools/icons/followup.svg",
+    "default_popup": "tools/src/ui/followups-popup.html"
+  }
+}
