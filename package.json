@@ -1,0 +1,36 @@
+{
+  "name": "draftsafe-mcp",
+  "version": "0.1.0",
+  "description": "Draft-only MCP server and companion add-on for Thunderbird. Reads, tags, snoozes and drafts mail. Never sends.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "draftsafe-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist/*.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build:mcp && npm run build:xpi",
+    "build:mcp": "tsc -p tsconfig.json",
+    "build:xpi": "node scripts/build-xpi.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  }
+}
