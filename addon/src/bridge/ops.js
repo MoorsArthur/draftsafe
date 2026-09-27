@@ -60,15 +60,21 @@ export function createMailOps({ api, now = () => Date.now() }) {
   }
 
   async function headersOf(id) {
+    let raw = {};
     try {
       if (api.messages.getHeaders) {
-        return (await api.messages.getHeaders(id)) || {};
+        raw = (await api.messages.getHeaders(id)) || {};
+      } else {
+        const full = await api.messages.getFull(id, { decodeContent: true });
+        raw = (full && full.headers) || {};
       }
-      const full = await api.messages.getFull(id, { decodeContent: true });
-      return (full && full.headers) || {};
     } catch {
       return {};
     }
+    // Normalise to lowercase names with array values, whatever the API returned.
+    return Object.fromEntries(
+      Object.entries(raw).map(([k, v]) => [k.toLowerCase(), Array.isArray(v) ? v.map(String) : [String(v)]])
+    );
   }
 
   function pickHeaders(all) {
