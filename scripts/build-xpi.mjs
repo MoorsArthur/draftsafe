@@ -92,7 +92,7 @@ function crc32(buf) {
 const DOS_TIME = 0; // 00:00:00
 const DOS_DATE = (0 << 9) | (1 << 5) | 1; // 1980-01-01
 
-function zip(files) {
+export function zip(files) {
   const locals = [];
   const centrals = [];
   let offset = 0;

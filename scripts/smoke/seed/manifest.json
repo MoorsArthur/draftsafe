@@ -1,0 +1,9 @@
+{
+  "manifest_version": 2,
+  "name": "Draftsafe smoke-test seeder (test only)",
+  "version": "1.0",
+  "description": "TEST ONLY. Imports three fixed test messages into the smoke-test profile's Inbox. Never packed into dist/.",
+  "browser_specific_settings": { "gecko": { "id": "draftsafe-smoke-seed@test.invalid", "strict_min_version": "140.0" } },
+  "background": { "scripts": ["background.js"] },
+  "permissions": ["accountsRead", "messagesRead", "messagesImport"]
+}
