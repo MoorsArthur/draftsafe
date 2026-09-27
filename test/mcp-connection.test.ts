@@ -1,8 +1,8 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { candidatePaths, checkPermissions, parseConnection, readConnection } from "../mcp/src/connection.js";
+import { candidatePaths, checkDirectory, checkPermissions, parseConnection, readConnection } from "../mcp/src/connection.js";
 
 const TOKEN = "A".repeat(43);
 const dirs: string[] = [];
@@ -16,6 +16,7 @@ function tmp() {
 
 function writeConn(file: string, data: object, mode = 0o600) {
   mkdirSync(path.dirname(file), { recursive: true });
+  chmodSync(path.dirname(file), 0o700); // as the add-on does; the default umask may be 002
   writeFileSync(file, JSON.stringify(data));
   chmodSync(file, mode);
 }
@@ -66,5 +67,38 @@ describe("connection file discovery", () => {
     chmodSync(b, 0o644);
     await expect(readConnection([b])).rejects.toThrow(/refusing/);
     await expect(readConnection([path.join(d, "nope.json")])).rejects.toThrow(/Is Thunderbird running/);
+  });
+
+  it("refuses a symlinked connection file (checked and read through one descriptor)", async () => {
+    const d = tmp();
+    const real = path.join(d, "real", "connection.json");
+    writeConn(real, { version: 1, port: 3333, token: TOKEN });
+    const link = path.join(d, "link", "connection.json");
+    mkdirSync(path.dirname(link), { recursive: true, mode: 0o700 });
+    symlinkSync(real, link);
+    await expect(readConnection([link])).rejects.toThrow(/symlink/);
+  });
+
+  it("refuses a connection directory that others can write to, or that is a symlink", async () => {
+    const d = tmp();
+    const file = path.join(d, "shared", "connection.json");
+    writeConn(file, { version: 1, port: 4444, token: TOKEN });
+    chmodSync(path.dirname(file), 0o777);
+    await expect(readConnection([file])).rejects.toThrow(/writable by other users/);
+    chmodSync(path.dirname(file), 0o700);
+    expect((await readConnection([file])).port).toBe(4444);
+
+    const linkedDir = path.join(d, "linkdir");
+    symlinkSync(path.dirname(file), linkedDir);
+    await expect(readConnection([path.join(linkedDir, "connection.json")])).rejects.toThrow(/not a directory/);
+  });
+
+  it("checkDirectory rejects foreign owners and group/world-writable modes", () => {
+    const uid = process.getuid!();
+    const st = (mode: number, owner = uid) => ({ mode: 0o040000 | mode, uid: owner, mtimeMs: 0, isFile: () => false, isDirectory: () => true });
+    expect(() => checkDirectory(st(0o700), "d", "linux")).not.toThrow();
+    expect(() => checkDirectory(st(0o755), "d", "linux")).not.toThrow();
+    expect(() => checkDirectory(st(0o775), "d", "linux")).toThrow(/writable/);
+    expect(() => checkDirectory(st(0o700, uid + 1), "d", "linux")).toThrow(/not owned/);
   });
 });
