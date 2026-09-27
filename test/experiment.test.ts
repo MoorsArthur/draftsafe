@@ -23,7 +23,10 @@ function harness() {
 
   const modules: Record<string, unknown> = {
     "resource://gre/modules/NetUtil.sys.mjs": {
-      NetUtil: { asyncCopy: (src: any, _out: unknown, cb: () => void) => (copies.push(src.data), (copyCallback = cb)) },
+      NetUtil: {
+        asyncCopy: (src: any, _out: unknown, cb: () => void) => (copies.push(src.data), (copyCallback = cb)),
+        readInputStreamToString: (stream: any) => files.get(stream.path)!,
+      },
     },
     "resource://gre/modules/Timer.sys.mjs": {
       setTimeout: (fn: () => void, ms: number) => (timers.push({ at: clock + ms, fn, id: nextTimer }), nextTimer++),
@@ -45,9 +48,17 @@ function harness() {
     "@mozilla.org/network/input-stream-pump;1": () => ({ init() {}, asyncRead: (l: any) => (pumpListener = l) }),
     "@mozilla.org/binaryinputstream;1": () => ({ setInputStream(s: any) { this.s = s; }, readBytes() { return this.s.chunk; } }),
     "@mozilla.org/io/string-input-stream;1": () => ({ setByteStringData(d: string) { this.data = d; } }),
-    "@mozilla.org/file/local;1": () => ({ initWithPath() {}, exists: () => false, isSymlink: () => false }),
+    "@mozilla.org/file/local;1": () => ({
+      path: "",
+      initWithPath(p: string) { this.path = p; },
+      exists() { return files.has(this.path); },
+      isSymlink: () => false,
+      remove() { files.delete(this.path); },
+    }),
+    "@mozilla.org/network/file-input-stream;1": () => ({ init(f: any) { this.path = f.path; }, available: () => 100, close() {} }),
   };
   let pumpListener: any = null;
+  const substitutions: [string, unknown][] = [];
   const sandbox: Record<string, unknown> = {
     ExtensionCommon,
     ChromeUtils: { importESModule: (u: string) => modules[u], generateQI: () => () => {} },
@@ -60,6 +71,7 @@ function harness() {
       env: { get: (k: string) => (k === "SNAP_USER_COMMON" ? "/snapcommon" : "") },
       appinfo: { OS: "Linux" },
       dirsvc: { get: () => ({ path: "/home/u" }) },
+      io: { getProtocolHandler: () => ({ QueryInterface: () => ({ setSubstitution: (h: string, u: unknown) => substitutions.push([h, u]) }) }) },
       scriptloader: { loadSubScript: (_u: string, target: object) => vm.runInNewContext(readFileSync(FRAMING, "utf8"), Object.assign(target, { unescape, encodeURIComponent })) },
       uuid: { generateUUID: () => ({ toString: () => `{${Math.random().toString(16).slice(2)}}` }) },
     },
@@ -91,6 +103,7 @@ function harness() {
     perms,
     writes,
     copies,
+    substitutions,
     finishCopy: () => copyCallback && copyCallback(),
     advance(ms: number) {
       clock += ms;
@@ -103,7 +116,11 @@ function harness() {
       const transport = { closed: false, openInputStream: () => ({}), openOutputStream: () => ({}), close() { this.closed = true; } };
       acceptor.onSocketAccepted(null, transport);
       const listener = pumpListener;
-      return { transport, send: (chunk: string) => listener.onDataAvailable(null, { chunk }, 0, chunk.length) };
+      return {
+        transport,
+        send: (chunk: string) => listener.onDataAvailable(null, { chunk }, 0, chunk.length),
+        hangup: () => listener.onStopRequest(),
+      };
     },
   };
 }
@@ -125,6 +142,42 @@ describe("experiment socket lifecycle (vm harness)", () => {
     expect(c.transport.closed).toBe(true);
   });
 
+  it("lingers after writing the response until the client hangs up (no RST)", async () => {
+    const h = harness();
+    await h.api.start();
+    h.api.onRequest.addListener(async () => ({ status: 200, body: "{}" }));
+    const c = h.connect();
+    c.send(REQ);
+    await flush();
+    h.finishCopy();
+    expect(c.transport.closed).toBe(false); // response written, waiting for the client's FIN
+    c.hangup();
+    expect(c.transport.closed).toBe(true);
+  });
+
+  it("closes a lingering connection after lingerMs if the client never hangs up", async () => {
+    const h = harness();
+    await h.api.start();
+    h.api.onRequest.addListener(async () => ({ status: 200, body: "{}" }));
+    const c = h.connect();
+    c.send(REQ);
+    await flush();
+    h.finishCopy();
+    h.advance(1_999);
+    expect(c.transport.closed).toBe(false);
+    h.advance(1);
+    expect(c.transport.closed).toBe(true);
+  });
+
+  it("a client hanging up before the response abandons the request", async () => {
+    const h = harness();
+    await h.api.start();
+    const c = h.connect();
+    c.send(REQ.slice(0, 20));
+    c.hangup();
+    expect(c.transport.closed).toBe(true);
+  });
+
   it("frees slots so a stalled reader cannot lock out new connections", async () => {
     const h = harness();
     await h.api.start();
@@ -137,6 +190,15 @@ describe("experiment socket lifecycle (vm harness)", () => {
     h.advance(15_000);
     const fresh = h.connect();
     expect(fresh.transport.closed).toBe(false);
+  });
+
+  it("loads framing.js through a resource:// alias that is removed right after", async () => {
+    const h = harness();
+    await h.api.start();
+    expect(h.substitutions.map(([host, uri]) => [host, uri === null])).toEqual([
+      ["draftsafe-bridge", false],
+      ["draftsafe-bridge", true],
+    ]);
   });
 
   it("replaces an oversized response with a small error", async () => {
@@ -179,8 +241,15 @@ describe("connection file publication (vm harness)", () => {
     await h.api.publishConnection(T1);
     h.files.set(TARGET, JSON.stringify({ version: 1, port: 6666, token: T2 })); // another profile started later
     h.instance.onShutdown(true);
-    await flush();
     expect(JSON.parse(h.files.get(TARGET)!).token).toBe(T2);
+  });
+
+  it("on app shutdown removes its own record synchronously", async () => {
+    const h = harness();
+    await h.api.start();
+    await h.api.publishConnection(T1);
+    h.instance.onShutdown(true);
+    expect(h.files.has(TARGET)).toBe(false); // no await: must already be gone
   });
 
   it("rejects malformed tokens", async () => {

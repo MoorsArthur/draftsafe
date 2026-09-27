@@ -96,7 +96,11 @@ class BridgeConnection {
       onStartRequest: () => {},
       onDataAvailable: (request, stream, offset, count) => this.onData(stream, count),
       onStopRequest: () => {
-        if (!this.done) {
+        // The client hung up. Before a response: abandon the request. After
+        // the response was written: this is the normal end of a lingering
+        // close (see replyRaw).
+        this.inputEnded = true;
+        if (!this.done || this.written) {
           this.close();
         }
       },
@@ -177,7 +181,21 @@ class BridgeConnection {
     var source = dsCc["@mozilla.org/io/string-input-stream;1"].createInstance(dsCi.nsIStringInputStream);
     source.setByteStringData(bytes);
     try {
-      NetUtil.asyncCopy(source, this.output, () => this.close());
+      NetUtil.asyncCopy(source, this.output, () => {
+        // Lingering close: closing the socket while the client's side still
+        // has bytes in flight makes the kernel send a RST, which can destroy
+        // the response before the client reads it (seen with Node's fetch
+        // under real Thunderbird). Keep reading until the client closes after
+        // reading the response (it was told "Connection: close"), or at most
+        // lingerMs.
+        this.written = true;
+        if (this.inputEnded) {
+          this.close();
+          return;
+        }
+        dsClearTimeout(this.timer);
+        this.timer = dsSetTimeout(() => this.close(), limits.lingerMs);
+      });
     } catch {
       this.close();
     }
@@ -287,6 +305,35 @@ async function dsRemoveConnectionFile() {
   }
 }
 
+function dsRemoveConnectionFileSync() {
+  var token = dsPublishedToken;
+  dsPublishedToken = null;
+  if (!token) {
+    return;
+  }
+  try {
+    var file = dsCc["@mozilla.org/file/local;1"].createInstance(dsCi.nsIFile);
+    file.initWithPath(PathUtils.join(connectionDir(), CONNECTION_FILE));
+    if (!file.exists() || file.isSymlink()) {
+      return;
+    }
+    var stream = dsCc["@mozilla.org/network/file-input-stream;1"].createInstance(dsCi.nsIFileInputStream);
+    stream.init(file, -1, 0, 0);
+    var text;
+    try {
+      text = NetUtil.readInputStreamToString(stream, Math.min(stream.available(), 4096), { charset: "UTF-8" });
+    } finally {
+      stream.close();
+    }
+    var current = JSON.parse(text);
+    if (current && current.token === token) {
+      file.remove(false);
+    }
+  } catch {
+    // Absent, unreadable or replaced by another instance: leave it alone.
+  }
+}
+
 function dsRandomName() {
   // A random v4 UUID; only used to make the temporary file name unpredictable.
   return Services.uuid.generateUUID().toString().replace(/[{}-]/g, "");
@@ -302,6 +349,36 @@ function dsIsSymlink(path) {
   }
 }
 
+// loadSubScript() refuses the add-on's own jar:file: URI ("untrusted URI"),
+// so framing.js is loaded through a resource:// alias that exists only for
+// the duration of this synchronous call.
+var RESOURCE_HOST = "draftsafe-bridge";
+function dsLoadFraming(extension) {
+  var res = Services.io.getProtocolHandler("resource").QueryInterface(dsCi.nsISubstitutingProtocolHandler);
+  res.setSubstitution(RESOURCE_HOST, extension.rootURI);
+  try {
+    var framing = {};
+    Services.scriptloader.loadSubScript("resource://" + RESOURCE_HOST + "/bridge/api/framing.js", framing);
+    return framing;
+  } finally {
+    res.setSubstitution(RESOURCE_HOST, null);
+  }
+}
+
+// Thunderbird replaces any non-ExtensionError thrown by an Experiment with
+// "An unexpected error occurred". Keep the real reason; it only reaches the
+// background page, which never forwards internal errors to HTTP clients.
+async function dsExplain(step, fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof dsExtensionError) {
+      throw e;
+    }
+    throw new dsExtensionError(step + ": " + ((e && e.message) || String(e)));
+  }
+}
+
 // The experiment loader looks up this global by name (see manifest.json).
 var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
   onShutdown(isAppShutdown) {
@@ -309,18 +386,16 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
       dsServer.stop();
       dsServer = null;
     }
-    // Fire and forget: the token is useless once the socket is closed, but
-    // removing the file keeps clients from trying a dead port.
-    dsRemoveConnectionFile();
+    // Synchronous: on app shutdown an async IOUtils call may never complete,
+    // which would leave a stale record pointing at a dead port.
+    dsRemoveConnectionFileSync();
   }
 
   getAPI(context) {
     var extension = context.extension;
     var getServer = () => {
       if (!dsServer) {
-        var framing = {};
-        Services.scriptloader.loadSubScript(extension.rootURI.resolve("bridge/api/framing.js"), framing);
-        dsServer = new BridgeServer(framing);
+        dsServer = new BridgeServer(dsLoadFraming(extension));
       }
       return dsServer;
     };
@@ -328,7 +403,7 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
     return {
       draftsafeBridge: {
         async start() {
-          return { port: getServer().start() };
+          return dsExplain("start", () => ({ port: getServer().start() }));
         },
 
         async stop() {
@@ -338,7 +413,7 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
           await dsRemoveConnectionFile();
         },
 
-        async publishConnection(token) {
+        publishConnection: token => dsExplain("publishConnection", async () => {
           if (typeof token !== "string" || !TOKEN_RE.test(token)) {
             throw new dsExtensionError("invalid token format");
           }
@@ -388,7 +463,7 @@ var draftsafeBridge = class extends dsExtensionCommon.ExtensionAPI {
           }
           dsPublishedToken = token;
           return { path: target };
-        },
+        }),
 
         onRequest: new dsExtensionCommon.EventManager({
           context,

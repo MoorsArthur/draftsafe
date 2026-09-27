@@ -29,7 +29,7 @@ export async function startBridge() {
     console.info(`draftsafe: bridge listening on 127.0.0.1:${port}, connection file ${path}`);
   } catch (e) {
     secrets = null;
-    console.error("draftsafe: bridge failed to start", e);
+    console.error(`draftsafe: bridge failed to start: ${e && e.message}`);
   }
 }
 

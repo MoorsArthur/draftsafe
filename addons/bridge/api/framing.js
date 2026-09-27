@@ -32,6 +32,9 @@ var LIMITS = Object.freeze({
   // A client has this long to read the whole response; then the socket is
   // closed, so a client that never reads cannot hold a connection slot.
   writeTimeoutMs: 15 * 1000,
+  // After the response is written, wait at most this long for the client to
+  // close its side before closing ours (lingering close, avoids RST).
+  lingerMs: 2 * 1000,
 });
 
 // Headers that must never appear twice: a duplicate is a smuggling or
