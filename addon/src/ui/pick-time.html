@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Draftsafe: pick a time</title>
+    <link rel="stylesheet" href="popup.css">
+    <script type="module" src="pick-time.js"></script>
+  </head>
+  <body>
+    <h1 id="title">Pick a date and time</h1>
+    <form class="row" id="form">
+      <input type="datetime-local" id="when" required aria-label="Date and time">
+      <button class="primary" type="submit" id="submit">Save</button>
+    </form>
+    <p class="status" id="status" role="status"></p>
+  </body>
+</html>

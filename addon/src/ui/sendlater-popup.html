@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="popup.css">
+    <script type="module" src="sendlater-popup.js"></script>
+  </head>
+  <body>
+    <h1>Send this message later</h1>
+    <div class="presets" id="presets"></div>
+    <form class="row" id="custom">
+      <input type="datetime-local" id="when" required aria-label="Custom date and time">
+      <button class="primary" type="submit">Schedule</button>
+    </form>
+    <p class="status" id="status" role="status"></p>
+    <h2>Scheduled</h2>
+    <ul class="items" id="list"></ul>
+  </body>
+</html>

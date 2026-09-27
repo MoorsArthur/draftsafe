@@ -1,0 +1,54 @@
+[
+  {
+    "namespace": "draftsafeBridge",
+    "description": "Loopback-only HTTP listener. Frames requests and hands them to the background page; it has no mail access of its own.",
+    "functions": [
+      {
+        "name": "start",
+        "type": "function",
+        "async": true,
+        "description": "Starts listening on 127.0.0.1 on a random free port. Idempotent. Resolves to {port}.",
+        "parameters": []
+      },
+      {
+        "name": "stop",
+        "type": "function",
+        "async": true,
+        "description": "Stops listening and removes the connection file.",
+        "parameters": []
+      },
+      {
+        "name": "publishConnection",
+        "type": "function",
+        "async": true,
+        "description": "Writes {port, token} to the fixed per-user connection file (dir 0700, file 0600). Resolves to {path}.",
+        "parameters": [
+          {
+            "name": "token",
+            "type": "string"
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "name": "onRequest",
+        "type": "function",
+        "description": "Fired for every fully framed request. The listener must return (or resolve to) {status: integer, body: string}.",
+        "parameters": [
+          {
+            "name": "request",
+            "type": "object",
+            "properties": {
+              "method": { "type": "string" },
+              "target": { "type": "string" },
+              "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+              "body": { "type": "string", "description": "Raw body as a binary string (one char per byte)." },
+              "port": { "type": "integer" }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
