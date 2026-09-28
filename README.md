@@ -162,8 +162,9 @@ Alternatively, provide up to 300 sender addresses with their account IDs:
 {"senders":[{"account_id":"account1","address":"news@example.test"}]}
 ```
 
-Tools searches matching mail in that account's Inbox, Trash, Archive and All Mail
-folders, newest first, and uses the first message with a List-Unsubscribe header.
+Tools searches matching mail in that account's Trash, Junk, Inbox and Archive,
+in that order. Gmail All Mail, Important and Starred are skipped. Other accounts
+may also search All Mail last. The result names the folder used.
 Senders with no matching header, unreadable mail or a search timeout are skipped.
 
 ```json

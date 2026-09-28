@@ -95,8 +95,10 @@ partial success is reported and already-completed moves are not rolled back.
 
 Tools itself reads `List-Unsubscribe` and `List-Unsubscribe-Post` from the selected
 message. Request schemas accept message IDs and reasons or account-scoped sender
-addresses, never agent-supplied URLs. Sender lookup queries Inbox, Trash, Archive
-and All Mail within Thunderbird, with four workers and a per-sender deadline;
+addresses, never agent-supplied URLs. Sender lookup queries Trash, Junk, Inbox,
+then Archive within Thunderbird, with four workers and an eight-second per-sender
+deadline. Gmail All Mail, Important and Starred are excluded; other accounts may
+search All Mail last;
 missing, timed-out and unreadable senders are skipped. It requires a HTTPS target and `List-Unsubscribe=One-Click` signalling,
 and re-reads provenance before execution. The request follows the
 [RFC 8058 POST format](https://www.rfc-editor.org/rfc/rfc8058.html), with no cookies,
@@ -104,10 +106,14 @@ no referrer, no redirect following and a 20-second network timeout. It never GET
 an unsubscribe page or sends a mailto message. Website-only/mailto entries are
 plain-text manual instructions.
 
-The approval click requests per-origin optional host permission. A trusted
-unsubscribe runs without another click, so it can POST only if its per-origin
-permission is already granted. Lack of permission returns `permission_denied`;
-requested origins are removed after execution.
+The ordinary approval click requests per-origin optional host permission and
+removes those origins after execution. Starting one-hour trust from the menu or
+approval page requests the optional `https://*/*` permission inside that click.
+Trusted execution waits for the permission response, then checks the specific
+origin before each POST. Denial returns `permission_denied` with a reason and no
+POST. The broad grant persists in Thunderbird after trust ends; trust itself is
+in memory and still expires after one hour. Failed POSTs return a bounded reason
+code, such as HTTP status, network error or CSP rejection.
 Senders with requested mail in Junk, or matching mail found in a Junk folder,
 default to Deny and display a warning. Excluding the message that supplies the
 chosen URL prevents the POST for that destination.

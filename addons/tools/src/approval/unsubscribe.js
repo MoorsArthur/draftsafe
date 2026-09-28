@@ -7,8 +7,8 @@
 //   - when the message also carries "List-Unsubscribe-Post:
 //     List-Unsubscribe=One-Click" and the URL is plain https on the default
 //     port to a public-looking host name;
-//   - after the user ticked that sender and clicked Approve, and granted the
-//     per-origin host permission Thunderbird asks for at that moment;
+//   - after approval or active UI-started trust, with host permission granted
+//     inside the corresponding trusted click;
 //   - as a POST with body "List-Unsubscribe=One-Click", no cookies, no
 //     referrer, no redirects followed.
 // mailto: and web-page unsubscribe links are shown as "manual" and never
@@ -21,7 +21,7 @@ const MAX_URL = 2048;
 const POST_TIMEOUT_MS = 20_000;
 export const HEADER_TIMEOUT_MS = 8_000;
 export const HEADER_CONCURRENCY = 4;
-export const SENDER_TIMEOUT_MS = 7_000;
+export const SENDER_TIMEOUT_MS = 8_000;
 const BLOCKED_SUFFIXES = [".localhost", ".local", ".internal", ".intranet", ".lan", ".home", ".corp", ".home.arpa", ".localdomain"];
 
 /** Lower-cased header map with array values, whatever the API returned. */
@@ -90,39 +90,51 @@ export function originPattern(origin) {
   return `${origin}/*`;
 }
 
-function searchableFolder(folder) {
-  if (!folder?.id || folder.isVirtual || folder.isUnified || folder.isTag) return false;
-  if ((folder.specialUse || []).some(use => ["inbox", "trash", "archives"].includes(use))) return true;
-  // Thunderbird has no specialUse value for Gmail's All Mail folder.
+function searchFolders(folders) {
+  const gmail = folders.some(f => /^\/(?:\[Gmail\]|\[Google Mail\])\//i.test(f.path || ""));
   const allMail = /^(?:all mail|alle e-mails?|alle berichten|tous les messages|tous les e-mails|alle nachrichten)$/i;
-  return allMail.test((folder.path || "").split("/").at(-1) || "") || allMail.test(folder.name || "");
+  const ranked = [];
+  for (const folder of folders) {
+    if (!folder?.id || folder.isVirtual || folder.isUnified || folder.isTag) continue;
+    const uses = folder.specialUse || [];
+    const name = (folder.path || "").split("/").at(-1) || folder.name || "";
+    if (gmail && allMail.test(name)) continue;
+    let rank = uses.includes("trash") ? 0 : uses.includes("junk") ? 1 : uses.includes("inbox") ? 2 : uses.includes("archives") ? 3 : -1;
+    if (rank < 0 && !gmail && allMail.test(name)) rank = 4;
+    if (rank >= 0) ranked.push({ folder, rank });
+  }
+  return ranked.sort((a, b) => a.rank - b.rank || a.folder.id.localeCompare(b.folder.id)).map(x => x.folder);
 }
 
-async function resolveSender(api, sender, folderIds, timeoutMs) {
+async function resolveSender(api, sender, folders, timeoutMs) {
   let listId = null;
   let expired = false;
   const timer = setTimeout(() => { expired = true; }, timeoutMs);
   try {
     const work = (async () => {
-      const matches = [];
-      let page = await api.messages.query({ accountId: sender.accountId, folderId: folderIds, author: sender.address, messagesPerPage: 100 });
-      for (;;) {
-        listId = page.id;
-        if (expired) throw new Error("sender search timed out");
-        for (const m of page.messages || []) {
-          if (m.folder?.accountId === sender.accountId && folderIds.includes(m.folder.id) && senderAddress(m.author) === sender.address) matches.push(m);
-        }
-        if (!page.id) break;
-        page = await api.messages.continueList(page.id);
-      }
-      matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       let unreadable = false;
-      for (const m of matches) {
-        if (expired) throw new Error("sender search timed out");
-        try {
-          const headers = await headersOf(api, m.id);
-          if ((headers["list-unsubscribe"] || []).length) return { messageId: m.id };
-        } catch { unreadable = true; }
+      for (const folder of folders) {
+        const matches = [];
+        let page = await api.messages.query({ accountId: sender.accountId, folderId: folder.id, author: sender.address, messagesPerPage: 100 });
+        for (;;) {
+          listId = page.id;
+          if (expired) throw new Error("sender search timed out");
+          for (const m of page.messages || []) {
+            if (m.folder?.accountId === sender.accountId && m.folder.id === folder.id && senderAddress(m.author) === sender.address) matches.push(m);
+          }
+          if (!page.id) break;
+          page = await api.messages.continueList(page.id);
+        }
+        matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        for (const m of matches) {
+          if (expired) throw new Error("sender search timed out");
+          try {
+            const headers = await headersOf(api, m.id);
+            if ((headers["list-unsubscribe"] || []).length) return { messageId: m.id, folderUsed: folder.path || folder.name || folder.id };
+          } catch { unreadable = true; }
+        }
+        await abortList(api, listId);
+        listId = null;
       }
       return { result: unreadable ? "unreadable" : "not_found" };
     })();
@@ -147,8 +159,8 @@ async function resolveSenders(api, senders, onProgress, timeoutMs) {
         if (!folders.has(sender.accountId)) {
           folders.set(sender.accountId, within(api.folders.query({ accountId: sender.accountId }), timeoutMs));
         }
-        const folderIds = (await folders.get(sender.accountId)).filter(f => f.accountId === sender.accountId && searchableFolder(f)).map(f => f.id);
-        results[index] = folderIds.length ? await resolveSender(api, sender, folderIds, timeoutMs) : { result: "not_found" };
+        const ordered = searchFolders((await folders.get(sender.accountId)).filter(f => f.accountId === sender.accountId));
+        results[index] = ordered.length ? await resolveSender(api, sender, ordered, timeoutMs) : { result: "not_found" };
       } catch (e) {
         results[index] = { result: /timed out/.test(String(e)) ? "timeout" : "unreadable" };
       } finally { onProgress(++done, senders.length, "senders"); }
@@ -175,6 +187,7 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
         const s = await within((async () => {
           const snap = await snapshotMessage(api, it.messageId);
           snap.reason = it.reason;
+          snap.folderUsed = it.folderUsed || null;
           snap.inJunk = snap.junk || snap.folderUses.includes("junk");
           snap.how = unsubscribeMethod(await headersOf(api, snap.id));
           return snap;
@@ -253,6 +266,7 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
       count: s.items.length,
       items: s.items.map(i => ({ id: i.id, subject: i.subject })),
       sourceMessageId: s.pick.id,
+      folderUsed: s.pick.folderUsed,
       method: s.method,
       host: s.host,
       origin: s.origin,
@@ -287,29 +301,34 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
         referrerPolicy: "no-referrer",
         signal: AbortSignal.timeout(POST_TIMEOUT_MS),
       });
-      return res && res.ok ? "unsubscribed" : "failed";
-    } catch {
-      return "failed";
+      return res?.ok ? { result: "unsubscribed" } : { result: "failed", reason: res ? `http_${Number.isInteger(res.status) ? res.status : "unknown"}` : "no_response" };
+    } catch (e) {
+      const detail = String(e?.message || e);
+      const reason = e?.name === "TimeoutError" || e?.name === "AbortError" ? "network_timeout"
+        : /content security policy|\bcsp\b/i.test(detail) ? "csp_blocked" : "network_error";
+      return { result: "failed", reason };
     }
   }
 
-  async function execute(decision) {
+  async function execute(decision, { retainPermissions = false } = {}) {
     const choices = readDecision(decision);
     const perSender = [];
     const origins = new Set();
     for (const [i, s] of senders.entries()) {
       if (s.method !== "one_click") {
-        perSender.push("manual");
+        perSender.push({ result: "manual", reason: s.why });
         continue;
       }
       if (!choices[i].approved) {
-        perSender.push("excluded");
+        perSender.push({ result: "excluded" });
         continue;
       }
       let fresh;
       try { fresh = unsubscribeMethod(await within(headersOf(api, s.pick.id), headerTimeoutMs)); }
-      catch { perSender.push("failed"); continue; }
-      if (!(await stillSame(api, s.pick)) || fresh.method !== "one_click" || fresh.url !== s.url) { perSender.push("failed"); continue; }
+      catch { perSender.push({ result: "failed", reason: "header_unreadable" }); continue; }
+      let unchanged = false;
+      try { unchanged = await stillSame(api, s.pick); } catch { /* fail closed */ }
+      if (!unchanged || fresh.method !== "one_click" || fresh.url !== s.url) { perSender.push({ result: "failed", reason: "message_changed" }); continue; }
       const pattern = originPattern(s.origin);
       origins.add(pattern);
       let granted = false;
@@ -318,17 +337,17 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
       } catch {
         granted = false;
       }
-      perSender.push(granted ? await post(s.url) : "permission_denied");
+      perSender.push(granted ? await post(s.url) : { result: "permission_denied", reason: "host_permission_not_granted" });
     }
     // The host permissions were only needed for these requests.
-    if (origins.size) {
+    if (origins.size && !retainPermissions) {
       await api.permissions.remove({ origins: [...origins] }).catch(() => {});
     }
     const items = [];
     for (const [i, s] of senders.entries()) {
       for (const m of s.items) {
-        if (choices[i].excluded.includes(m.id)) { items.push({ messageId: m.id, approved: false, result: "excluded" }); continue; }
-        items.push({ messageId: m.id, approved: perSender[i] !== "excluded" && perSender[i] !== "manual", result: perSender[i] });
+        if (choices[i].excluded.includes(m.id)) { items.push({ messageId: m.id, approved: false, result: "excluded", folderUsed: m.folderUsed }); continue; }
+        items.push({ messageId: m.id, approved: perSender[i].result !== "excluded" && perSender[i].result !== "manual", ...perSender[i], folderUsed: m.folderUsed });
       }
     }
     for (const messageId of skipped) items.push({ messageId, approved: false, result: "unreadable" });

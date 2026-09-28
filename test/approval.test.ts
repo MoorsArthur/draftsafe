@@ -170,6 +170,7 @@ describe("one-hour agent trust", () => {
     expect(f.manager.trustRemaining()).toBe(0);
     p.click("apply-trust");
     await vi.waitFor(() => expect(f.manager.trustRemaining()).toBe(TRUST_DURATION_MS));
+    expect(f.api.permissions.request).toHaveBeenCalledWith({ origins: ["https://*/*"] });
     expect(f.notices).toHaveBeenCalledWith(expect.stringContaining("vertrouwd"), expect.any(String));
     const second = f.add("Second", "account1://Source");
     const trusted = await f.request("cleanup", cleanup([second.id], { action: "move", folder: "INBOX" }));
@@ -262,7 +263,13 @@ describe("one-hour agent trust", () => {
 
   it("auto-executes folder changes and eligible one-click unsubscribes", async () => {
     const fetchImpl = vi.fn(async () => ({ ok: true }));
-    const f = fixture(fetchImpl); f.manager.onTrustMenuClick();
+    const f = fixture(fetchImpl);
+    f.api.permissions.contains.mockResolvedValue(false);
+    f.api.permissions.request.mockImplementation(async () => {
+      f.api.permissions.contains.mockResolvedValue(true);
+      return true;
+    });
+    f.manager.onTrustMenuClick();
     const folders = await f.request("folders", { changes: [{ action: "create", folder: "account1://", newName: "Trusted" }] });
     await vi.waitFor(async () => expect(await f.status(folders)).toMatchObject({ outcome: { status: "approved", trusted: true } }));
     expect(f.api.folders.create).toHaveBeenCalled();
@@ -273,7 +280,26 @@ describe("one-hour agent trust", () => {
     const unsub = await f.request("unsubscribe", { items: [{ messageId: m.id, reason: "Stop newsletter" }] });
     await vi.waitFor(async () => expect(await f.status(unsub)).toMatchObject({ outcome: { status: "approved", trusted: true, items: [{ result: "unsubscribed" }] } }));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(f.api.permissions.request).toHaveBeenCalledWith({ origins: ["https://*/*"] });
     expect(f.api.windows.create).not.toHaveBeenCalled();
+    expect(f.api.permissions.remove).not.toHaveBeenCalled();
+  });
+
+  it("reports a denied trust host permission per sender without POST", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: true }));
+    const f = fixture(fetchImpl);
+    f.api.permissions.request.mockResolvedValue(false);
+    f.api.permissions.contains.mockResolvedValue(false);
+    f.manager.onTrustMenuClick();
+    expect(f.api.permissions.request).toHaveBeenCalledWith({ origins: ["https://*/*"] });
+    const m = f.add("Newsletter", "account1://INBOX", { headers: {
+      "List-Unsubscribe": ["<https://news.example.test/unsubscribe>"],
+      "List-Unsubscribe-Post": ["List-Unsubscribe=One-Click"],
+    } });
+    const r = await f.request("unsubscribe", { items: [{ messageId: m.id }] });
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { items: [{ result: "permission_denied", reason: "host_permission_not_granted" }] } }));
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(f.notices).toHaveBeenCalledWith("HTTPS-toestemming ontbreekt", expect.any(String));
   });
 });
 
@@ -382,15 +408,16 @@ describe("schemas and folder execution", () => {
 
 describe("unsubscribe provenance and relay", () => {
   const headers = { "list-unsubscribe": ["<https://news.example.test/u?id=mailbox>"], "list-unsubscribe-post": ["List-Unsubscribe=One-Click"] };
-  it("resolves the newest sender message with a List-Unsubscribe header inside the named account", async () => {
+  it("resolves a sender from Trash before newer mail in Archive", async () => {
     const f = fixture();
     f.add("Unrelated", "account1://INBOX", { author: "Other <other@example.test>", headers });
     f.add("Older", "account1://Trash", { author: "News <news@example.test>", date: new Date("2026-08-01"), headers });
-    const newest = f.add("Newest", "account1://Archive", { author: "News <news@example.test>", date: new Date("2026-09-01"), headers });
+    f.add("Newest", "account1://Archive", { author: "News <news@example.test>", date: new Date("2026-09-01"), headers });
     f.add("No header", "account1://INBOX", { author: "News <news@example.test>", date: new Date("2026-09-02") });
     const p = await planUnsubscribe(f.api, validateUnsubscribe({ senders: [{ accountId: "account1", address: "NEWS@example.test" }] }));
-    expect(f.api.messages.query).toHaveBeenCalledWith(expect.objectContaining({ accountId: "account1", author: "news@example.test", folderId: expect.arrayContaining(["account1://INBOX", "account1://Trash", "account1://Archive"]) }));
-    expect(p.view.senders).toMatchObject([{ sender: "news@example.test", sourceMessageId: newest.id, method: "one_click" }]);
+    expect(f.api.messages.query.mock.calls.map(([q]: any[]) => q.folderId).slice(0, 1)).toEqual(["account1://Trash"]);
+    expect(p.view.senders).toMatchObject([{ sender: "news@example.test", method: "one_click", folderUsed: "/Trash" }]);
+    expect((await p.execute({ senders: [{ approved: false }] })).items).toMatchObject([{ folderUsed: "/Trash" }]);
     expect(p.view.skippedSenders).toEqual([]);
   });
   it("reports missing and timed-out senders without approving them", async () => {
@@ -405,14 +432,21 @@ describe("unsubscribe provenance and relay", () => {
     ]);
     expect((await p.execute({ senders: [] })).skippedSenders).toEqual(p.view.skippedSenders);
   });
-  it("finds All Mail and rejects cross-account or malformed sender entries", async () => {
+  it("skips Gmail All Mail, Important and Starred while searching priority folders", async () => {
     const f = fixture();
     const allMail = folder("[Gmail]/All Mail");
-    f.fake.folders.push(allMail);
-    const m = f.add("News", allMail.id, { author: "News <news@example.test>", headers });
+    const important = folder("[Gmail]/Belangrijk");
+    const starred = folder("[Gmail]/Met ster");
+    f.fake.folders.push(allMail, important, starred);
+    f.add("News", allMail.id, { author: "News <news@example.test>", headers });
     const p = await planUnsubscribe(f.api, validateUnsubscribe({ senders: [{ accountId: "account1", address: "news@example.test" }] }));
-    expect(p.view.senders[0].sourceMessageId).toBe(m.id);
-    expect(() => validateUnsubscribe({ items: [{ messageId: m.id }], senders: [{ accountId: "account1", address: "news@example.test" }] })).toThrow();
+    expect(p.view.senders).toEqual([]);
+    const searched = f.api.messages.query.mock.calls.map(([q]: any[]) => q.folderId);
+    expect(searched.slice(0, 4)).toEqual(["account1://Trash", "account1://Junk", "account1://INBOX", "account1://Archive"]);
+    expect(searched).not.toContain(allMail.id);
+    expect(searched).not.toContain(important.id);
+    expect(searched).not.toContain(starred.id);
+    expect(() => validateUnsubscribe({ items: [{ messageId: 1 }], senders: [{ accountId: "account1", address: "news@example.test" }] })).toThrow();
     expect(() => validateUnsubscribe({ senders: [{ accountId: "account1", address: "news@example.test", url: "https://evil.example" }] })).toThrow();
     expect(() => validateUnsubscribe({ senders: Array.from({ length: 301 }, () => ({ accountId: "account1", address: "news@example.test" })) })).toThrow();
   });
@@ -448,6 +482,19 @@ describe("unsubscribe provenance and relay", () => {
     await p.execute({ senders: [{ approved: true }] });
     expect(fetchImpl).toHaveBeenCalledWith("https://news.example.test/u?id=mailbox", expect.objectContaining({ method: "POST", body: "List-Unsubscribe=One-Click", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" }));
     expect(f.api.permissions.remove).toHaveBeenCalledWith({ origins: ["https://news.example.test/*"] });
+  });
+  it("returns bounded failure reason codes for HTTP, network and CSP errors", async () => {
+    for (const [response, reason] of [
+      [{ ok: false, status: 429 }, "http_429"],
+      [new TypeError("NetworkError"), "network_error"],
+      [new TypeError("Content Security Policy blocked this request"), "csp_blocked"],
+    ] as const) {
+      const f = fixture();
+      const m = f.add("News", "account1://INBOX", { headers });
+      const fetchImpl = vi.fn(async () => { if (response instanceof Error) throw response; return response; });
+      const p = await planUnsubscribe(f.api, { items: [{ messageId: m.id }] }, { fetchImpl });
+      expect((await p.execute({ senders: [{ approved: true }] })).items).toMatchObject([{ result: "failed", reason }]);
+    }
   });
   it("changed headers, excluded source or denied host permission prevent POSTs", async () => {
     for (const change of ["url", "excluded", "permission"]) {
