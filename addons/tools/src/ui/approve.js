@@ -94,7 +94,7 @@ export function renderApproval(data) {
 }
 try {
   const count = Number(new URL(location.href).searchParams.get("n"));
-  if (Number.isInteger(count) && count > 0) document.getElementById("status").textContent = `Voorbereiden: 0 van ${count} onderdelen…`;
+  if (Number.isInteger(count) && count > 0) document.getElementById("status").textContent = `Voorbereiden… (0/${count})`;
   document.getElementById("apply").disabled = true;
   document.getElementById("apply-trust").disabled = true;
   document.getElementById("deny").disabled = true;
@@ -103,8 +103,10 @@ try {
   document.getElementById("apply").disabled = false;
   document.getElementById("apply-trust").disabled = false;
   document.getElementById("deny").disabled = false;
-} catch {
-  document.getElementById("status").textContent = "Dit verzoek is niet meer beschikbaar.";
+} catch (error) {
+  document.getElementById("status").textContent = error?.message === "This request is no longer open."
+    ? "Dit verzoek is niet meer beschikbaar."
+    : "Het verzoek kon niet worden geladen. Herlaad dit venster om het opnieuw te proberen.";
   document.getElementById("apply").disabled = true;
   document.getElementById("apply-trust").disabled = true;
 }

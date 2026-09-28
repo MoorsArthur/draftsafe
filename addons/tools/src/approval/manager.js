@@ -314,7 +314,10 @@ export function createApprovals({
   async function view(msg, sender) {
     if (pending && pending.state === "planning" && pending.requestId === msg?.requestId) {
       const slot = pending;
-      if (sender?.id === api.runtime.id && sender.url === `${pageBase}?r=${slot.requestId}&n=${slot.count}` && sender.tab?.windowId === slot.windowId)
+      // The page can load before windows.create resolves and records windowId.
+      // Only progress is exposed until its exact window can be verified.
+      if (sender?.id === api.runtime.id && sender.url === `${pageBase}?r=${slot.requestId}&n=${slot.count}` && sender.tab &&
+          (slot.windowId === undefined || sender.tab.windowId === slot.windowId))
         return { status: "planning", progress: slot.progress };
     }
     const slot = slotFor(sender, msg && msg.requestId);
@@ -389,9 +392,8 @@ export function createApprovals({
     const sender = { id: api.runtime.id, url: page.location.href, tab: { windowId: win.id } };
     let data = await view({ requestId }, sender);
     while (data.status === "planning") {
-      page.document.getElementById("status").textContent = data.progress.phase === "junk"
-        ? `Voorbereiden: ${data.progress.done} van ${data.progress.total} afzenders controleren…`
-        : `Voorbereiden: ${data.progress.done} van ${data.progress.total} ${data.progress.phase === "headers" ? "berichten" : "onderdelen"}…`;
+      const phase = data.progress.phase === "junk" ? "afzenders controleren" : data.progress.phase === "senders" ? "afzenders zoeken" : data.progress.phase === "headers" ? "berichten lezen" : "onderdelen";
+      page.document.getElementById("status").textContent = `Voorbereiden… (${data.progress.done}/${data.progress.total}) ${phase}`;
       await new Promise(resolve => timers.setTimeout(resolve, 250));
       data = await view({ requestId }, sender);
     }

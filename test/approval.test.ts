@@ -86,10 +86,27 @@ describe("approval boundary", () => {
     expect(await f.status(r)).toMatchObject({ status: "planning", progress: { total: 2 } });
     const p = f.page(r, { senders: [] });
     const attached = p.attach();
-    await vi.waitFor(() => expect(p.win.document.getElementById("status").textContent).toContain("van 2 berichten"));
+    await vi.waitFor(() => expect(p.win.document.getElementById("status").textContent).toContain("(0/2) berichten"));
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     release();
     await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ status: "pending", progress: { done: 1, phase: "junk" } }));
+    await attached;
+    p.click("deny");
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "denied" } }));
+  });
+  it("keeps the approval page preparing if it loads before windows.create resolves", async () => {
+    const f = fixture(); const m = f.add();
+    let releaseWindow!: () => void;
+    f.api.windows.create.mockImplementation(() => new Promise(resolve => { releaseWindow = () => resolve({ id: 55 }); }));
+    const request = f.request("unsubscribe", { items: [{ messageId: m.id }] });
+    await vi.waitFor(() => expect(releaseWindow).toBeTypeOf("function"));
+    const url = f.api.windows.create.mock.calls[0][0].url;
+    const r = { requestId: new URL(url).searchParams.get("r") };
+    const p = f.page(r, { senders: [{ approved: false }] });
+    const attached = p.attach();
+    await vi.waitFor(() => expect(p.win.document.getElementById("status").textContent).toContain("Voorbereiden"));
+    releaseWindow();
+    await request;
     await attached;
     p.click("deny");
     await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "denied" } }));
