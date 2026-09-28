@@ -62,6 +62,19 @@ describe("draftsafe-tools background (real module)", () => {
       .toEqual({ ok: false, code: "forbidden_sender" });
   });
 
+  it("answers every external message with a Promise (Thunderbird drops plain values)", async () => {
+    const { onExternal } = await loadTools();
+    const bridge = { id: "draftsafe-bridge@draftsafe.dev" };
+    for (const [msg, sender] of [
+      [{ v: 1, type: "draftsafe.approval.health" }, bridge],
+      [{ v: 1, type: "draftsafe.approval.request", kind: "bad", payload: {} }, bridge],
+      [{ v: 1, type: "draftsafe.approval.health" }, { id: "evil@x" }],
+      [null, bridge],
+    ] as const) {
+      expect(onExternal(msg, sender)).toBeInstanceOf(Promise);
+    }
+  });
+
   it("ignores messages from other extensions, content or foreign pages (fuzzed)", async () => {
     const { fake, onMessage } = await loadTools();
     const scheduleSpy = fake.api.compose.saveMessage;

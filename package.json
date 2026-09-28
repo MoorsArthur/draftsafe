@@ -1,6 +1,6 @@
 {
   "name": "draftsafe-mcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Read local Thunderbird mail and request mailbox changes with trusted-click approval. No agent send capability.",
   "license": "MIT",
   "type": "module",
