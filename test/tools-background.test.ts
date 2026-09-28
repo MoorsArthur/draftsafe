@@ -25,6 +25,7 @@ async function loadTools() {
     menus: { create: vi.fn(), update: vi.fn(async () => {}), onClicked: { addListener: vi.fn((fn: typeof onMenuClick) => (onMenuClick = fn)) } },
     alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
     notifications: { create: vi.fn(async () => "n") },
+    permissions: { request: vi.fn(async () => true), contains: vi.fn(async () => true), remove: vi.fn(async () => true) },
     browserAction: { setBadgeText: vi.fn(async () => {}) },
     messageDisplay: { getDisplayedMessages: vi.fn(async () => []), open: vi.fn() },
     windows: { create: vi.fn(), onRemoved: { addListener: vi.fn() } },
@@ -82,6 +83,7 @@ describe("draftsafe-tools background (real module)", () => {
     expect(await onExternal({ v: 1, type: "draftsafe.approval.trust" }, bridge)).toEqual({ ok: false, code: "bad_request" });
     expect(target.notifications.create).not.toHaveBeenCalled();
     await onMenuClick({ menuItemId: "ds-trust-agent" });
+    expect(target.permissions.request).toHaveBeenCalledWith({ origins: ["https://*/*"] });
     expect(target.notifications.create).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringContaining("vertrouwd") }));
     expect(target.menus.update).toHaveBeenCalledWith("ds-trust-agent", expect.objectContaining({ title: expect.stringContaining("Stop") }));
     await onMenuClick({ menuItemId: "ds-trust-agent" });

@@ -21,6 +21,7 @@ export const OUTCOME_TTL_MS = 30 * 60 * 1000;
 export const LOG_KEY = "approvalLog";
 export const MAX_LOG_ENTRIES = 200;
 export const TRUST_DURATION_MS = 60 * 60 * 1000;
+const TRUST_HOST_PERMISSION = "https://*/*";
 
 const PLANNERS = { cleanup: planCleanup, unsubscribe: planUnsubscribe, folders: planFolderChanges, state: planState };
 const DECISION_KEY = { cleanup: "batches", unsubscribe: "senders", folders: "changes", state: "changes" };
@@ -103,12 +104,29 @@ export function createApprovals({
   const recent = [];
   let trustUntil = 0;
   let trustTimer = null;
+  let trustPermission = Promise.resolve(false);
+
+  function requestTrustHostPermission(permissions = api.permissions) {
+    // Call request synchronously from the native click stack.
+    try {
+      return Promise.resolve(permissions.request({ origins: [TRUST_HOST_PERMISSION] })).then(Boolean, () => false);
+    } catch {
+      return Promise.resolve(false);
+    }
+  }
+
+  function reportTrustPermission(permission) {
+    void permission.then(granted => {
+      if (!granted && trustRemaining()) notify("HTTPS-toestemming ontbreekt", "Vertrouwde uitschrijvingen kunnen geen POST verzenden. Sta HTTPS-toegang toe via de vertrouwensknop.");
+    });
+  }
 
   function endTrust() {
     if (!trustUntil) return;
     trustUntil = 0;
     if (trustTimer !== null) timers.clearTimeout(trustTimer);
     trustTimer = null;
+    trustPermission = Promise.resolve(false);
     notify("Vertrouwen gestopt", "Verzoeken van de agent vragen opnieuw je toestemming.");
     onTrustChange(0);
   }
@@ -130,7 +148,11 @@ export function createApprovals({
   // Called only by Thunderbird's native menus.onClicked listener in background.js.
   function onTrustMenuClick() {
     if (trustRemaining()) endTrust();
-    else startTrust();
+    else {
+      trustPermission = requestTrustHostPermission();
+      startTrust();
+      reportTrustPermission(trustPermission);
+    }
   }
 
   function sweep() {
@@ -247,6 +269,7 @@ export function createApprovals({
         summary: summarize(kind, plan.view), reasons: reasonsOf(kind, plan.view) });
       if (pending !== slot || slot.state !== "planning") return { ok: true, requestId: slot.requestId };
       if (slot.auto) {
+        await trustPermission;
         if (!trustRemaining()) {
           await finish(slot, "denied");
           return;
@@ -264,7 +287,7 @@ export function createApprovals({
             await finish(slot, "denied");
             return;
           }
-          const result = await plan.execute(decision);
+          const result = await plan.execute(decision, { retainPermissions: true });
           slot.state = "open";
           await finish(slot, "approved_trusted", result, true);
         } catch (e) {
@@ -412,14 +435,15 @@ export function createApprovals({
       clicked = true;
       apply.disabled = deny.disabled = trust.disabled = true;
       // Request permission while the trusted user gesture is still on the stack.
-      const origins = allow && slot.plan.originsFor ? slot.plan.originsFor(decision) : [];
+      const origins = allow && !trustAfter && slot.plan.originsFor ? slot.plan.originsFor(decision) : [];
       let permission = Promise.resolve();
-      if (origins.length) {
+      if (trustAfter) permission = requestTrustHostPermission(page.messenger.permissions);
+      else if (origins.length) {
         try { permission = page.messenger.permissions.request({ origins }); } catch { /* fails closed */ }
       }
       const clickedAt = now();
       decide({ requestId, nonce: data.nonce, hash: data.hash, decision }, sender, permission).then(
-        outcome => { if (trustAfter && outcome.status === "approved") startTrust(clickedAt); page.close(); },
+        outcome => { if (trustAfter && outcome.status === "approved") { trustPermission = permission; startTrust(clickedAt); reportTrustPermission(permission); } page.close(); },
         () => { page.document.getElementById("status").textContent = "Actie gestopt. Bekijk de geschiedenis."; }
       );
     }
