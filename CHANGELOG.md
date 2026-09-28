@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.0 (2026-09-28)
+
+- Added relay-only cleanup/trash, unsubscribe and folder-change requests, plus
+  detailed folder listing and classification headers. Bridge send/move/delete
+  permissions remain absent.
+- All existing agent mutations (tags, follow-ups, read flags and drafts) now also
+  require approval in Tools. Bridge-only installs provide reads.
+- Added one-window review, per-batch decisions, sender/subject grouping, individual
+  exclusions, folder-tree previews and local request history. Only trusted UI
+  clicks can execute a one-use nonce/hash-bound plan; no approval message API.
+- Added 2000-message cap, 10-minute expiry, sender checks, special-folder/ancestor
+  protection, same-account depth-two folder rules and execution-time checks.
+  Merge membership is frozen before review; empty folders move to Trash.
+- Unsubscribe reads URLs from mail headers and uses only approved HTTPS POSTs
+  with per-origin optional permissions. Junk senders default off. Manual methods
+  never open a URL or send mail. No independent DKIM verification.
+- Added property/boundary tests and isolated Thunderbird smoke checks with real
+  X11 clicks. Smoke instrumentation is proven absent from both release XPIs.
+- Documented the approval protocol, client timeout, partial-failure behavior and
+  remaining races/network risks in README and SECURITY.md.
+
 ## 0.2.0 (2026-09-28)
 
 Security release after an adversarial review. The single add-on is split in two so
