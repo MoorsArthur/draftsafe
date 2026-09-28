@@ -149,12 +149,29 @@ describe("schemas and folder execution", () => {
     expect(() => validateUnsubscribe({ items: [{ messageId: 1, url: "https://evil.example" }] })).toThrow();
   });
   it("property: special-use destinations and their ancestors always refuse moves", async () => {
-    for (const use of ["inbox", "trash", "archives", "sent", "junk", "outbox", "drafts", "templates", "future-special"]) {
+    for (const use of ["trash", "archives", "sent", "junk", "outbox", "drafts", "templates", "future-special"]) {
       const f = fixture(); const m = f.add(); f.fake.folders.push(folder("Parent"), folder("Parent/Special", [use]));
       for (const path of ["Parent", "Parent/Special"]) await expect(planCleanup(f.api, validateCleanup(cleanup([m.id], { action: "move", folder: path })))).rejects.toThrow();
       for (const action of ["rename", "merge", "delete_empty"]) await expect(planFolderChanges(f.api, validateFolderChanges({ changes: [{ action, folder: "account1://Parent", ...(action === "rename" ? { newName: "Renamed" } : action === "merge" ? { into: "account1://Target" } : {}) }] }))).rejects.toThrow();
       expect(f.api.messages.move).not.toHaveBeenCalled();
     }
+  });
+  it("restores mail to Inbox but refuses other protected move destinations", async () => {
+    const f = fixture();
+    const mail = f.add("Restore", "account1://Source");
+    const plan = await planCleanup(f.api, validateCleanup(cleanup([mail.id], { action: "move", folder: "INBOX" })));
+    expect((await plan.execute(decision)).batches[0]).toMatchObject({ moved: 1, failed: 0 });
+    expect(f.api.messages.move).toHaveBeenCalledWith([mail.id], "account1://INBOX");
+    for (const path of ["Trash", "Archive", "Drafts", "Junk", "Sent"]) {
+      if (path === "Sent") f.fake.folders.push(folder("Sent", ["sent"]));
+      await expect(planCleanup(f.api, validateCleanup(cleanup([f.add().id], { action: "move", folder: path })))).rejects.toMatchObject({ code: "forbidden_folder" });
+    }
+    await expect(planCleanup(f.api, { batches: [{ action: "move", messageIds: [f.add().id], folder: [], reason: "root" }] } as any))
+      .rejects.toMatchObject({ code: "forbidden_folder" });
+    const another = f.add("Restore later", "account1://Source");
+    const recheck = await planCleanup(f.api, validateCleanup(cleanup([another.id], { action: "move", folder: "INBOX" })));
+    f.fake.folders.find(folder => folder.id === "account1://INBOX")!.specialUse = ["inbox", "trash"];
+    expect((await recheck.execute(decision)).batches[0]).toMatchObject({ moved: 0, failed: 1 });
   });
   it("trash/archive use only their account special-use folder", async () => {
     for (const [action, id] of [["trash", "account1://Trash"], ["archive", "account1://Archive"]]) {

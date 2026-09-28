@@ -6,7 +6,7 @@
 //               this add-on has no messagesDelete permission and never
 //               deletes or empties anything)
 //   archive  -> the account's one special-use "archives" folder
-//   move     -> a user folder in the messages' (single) account; never a
+//   move     -> a user folder or the account's Inbox; never another
 //               special folder, a parent of one, or anything inside Trash,
 //               Junk, Outbox, Drafts, Templates or Sent (see tree.js).
 //               createFolder may create at most the missing tail of the
@@ -31,6 +31,15 @@ import {
 const SPECIAL_FOR = { trash: "trash", archive: "archives" };
 const MAX_VIEW_ITEMS = APPROVAL_LIMITS.maxMessages;
 
+function moveDestinationProblem(tree, folder) {
+  const problem = protectionOf(tree, folder);
+  // A top-level, dedicated Inbox can restore mail. All other protection rules remain.
+  const inbox = tree.byId.get(folder.id)?.depth === 1 &&
+    Array.isArray(folder.specialUse) && folder.specialUse.length === 1 && folder.specialUse[0] === "inbox" &&
+    !folder.isVirtual && !folder.isUnified && !folder.isTag;
+  return inbox && problem === "a special folder (inbox)" ? null : problem;
+}
+
 async function planDestination(api, batch, accountId) {
   const tree = await loadTree(api, accountId);
   const acct = tree.account.name || accountId;
@@ -47,7 +56,7 @@ async function planDestination(api, batch, accountId) {
   }
   const r = resolvePath(tree, batch.folder);
   if (r.folder) {
-    const problem = protectionOf(tree, r.folder);
+    const problem = moveDestinationProblem(tree, r.folder);
     if (problem) {
       throw new FolderRuleError("forbidden_folder", `destination is ${problem}`);
     }
@@ -161,7 +170,7 @@ export async function planCleanup(api, input) {
       for (const name of d.create.names) {
         const existing = childNamed(tree, parent.id, name);
         if (creatableParentProblem(tree, parent)) return null;
-        if (existing && protectionOf(tree, existing.folder)) return null;
+        if (existing && moveDestinationProblem(tree, existing.folder)) return null;
         parent = existing ? existing.folder : await api.folders.create(parent.id, name);
         if (!parent) return null;
         tree = await loadTree(api, d.accountId);
@@ -169,7 +178,7 @@ export async function planCleanup(api, input) {
       targetId = parent.id;
     }
     const target = tree.byId.get(targetId);
-    const ok = target && target.depth <= 2 && !protectionOf(tree, target.folder) ? target.folder.id : null;
+    const ok = target && target.depth <= 2 && !moveDestinationProblem(tree, target.folder) ? target.folder.id : null;
     created.set(d.accountId, ok);
     return ok;
   }
