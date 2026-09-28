@@ -137,6 +137,35 @@ describe("bridge HTTP client (mocked fetch)", () => {
   const conn = (port: number, token = TOKEN) => ({ port, token, path: "/x" });
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
+  it("acknowledges the request, then polls planning and pending status over separate HTTP calls", async () => {
+    const requestId = "a".repeat(24);
+    const replies = [
+      { requestId }, { status: "planning", progress: { done: 0, total: 79 } },
+      { status: "pending" }, { status: "done", outcome: { status: "denied" } },
+    ];
+    const fetchImpl = vi.fn(async () => json(200, { ok: true, result: replies.shift() }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    expect(await c.call("requests.unsubscribe", { items: [] })).toEqual({ status: "denied" });
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      "http://127.0.0.1:1/v1/requests.unsubscribe",
+      ...Array(3).fill("http://127.0.0.1:1/v1/requests.status"),
+    ]);
+    for (const [, init] of fetchImpl.mock.calls.slice(1)) expect(JSON.parse(init.body as string)).toEqual({ requestId });
+  });
+
+  it("retries a lost status reply and never calls a live planning request unavailable", async () => {
+    const requestId = "b".repeat(24);
+    const reset = Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } });
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(json(200, { ok: true, result: { requestId } }))
+      .mockRejectedValueOnce(reset)
+      .mockResolvedValueOnce(json(200, { ok: true, result: { status: "planning" } }))
+      .mockResolvedValueOnce(json(200, { ok: true, result: { status: "done", outcome: { status: "denied" } } }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    expect(await c.call("requests.unsubscribe", { items: [] })).toEqual({ status: "denied" });
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
   it("POSTs JSON to 127.0.0.1 with the bearer token and no Origin", async () => {
     const fetchImpl = vi.fn(async () => json(200, { ok: true, result: { a: 1 } }));
     const c = new BridgeClient({ loadConnection: async () => conn(5555), fetchImpl });
@@ -168,9 +197,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
     expect(await new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f1 }).call("health")).toBe(1);
 
     const f2 = vi.fn().mockRejectedValue(reset);
-    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f2 }).call("drafts.create")).rejects.toThrow(
-      /Cannot reach Thunderbird/
-    );
+    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f2 }).call("drafts.create")).rejects.toMatchObject({ code: "delivery_unknown" });
     expect(f2).toHaveBeenCalledTimes(1);
   });
 

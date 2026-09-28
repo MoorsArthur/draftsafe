@@ -55,6 +55,7 @@ export function renderApproval(data) {
     }
   } else if (v.kind === "unsubscribe") {
     key = "senders";
+    if (v.unreadable?.length) element("p", `${v.unreadable.length} berichten konden niet worden gelezen en worden overgeslagen (ID's: ${v.unreadable.join(", ")}).`).className = "warning";
     for (const r of v.reasons) reason(r, root);
     element("p", "Uitschrijven bevestigt mogelijk dat je adres actief is. De afzender en bestemming zijn niet door Draftsafe geauthenticeerd.");
     for (const s of v.senders) {
@@ -91,8 +92,14 @@ export function renderApproval(data) {
   return () => ({ [key]: choices.map(read => read()) });
 }
 try {
+  const count = Number(new URL(location.href).searchParams.get("n"));
+  if (Number.isInteger(count) && count > 0) document.getElementById("status").textContent = `Voorbereiden: 0 van ${count} onderdelen…`;
+  document.getElementById("apply").disabled = true;
+  document.getElementById("deny").disabled = true;
   const background = await messenger.runtime.getBackgroundPage();
   await background.attachApprovalPage(window, renderApproval);
+  document.getElementById("apply").disabled = false;
+  document.getElementById("deny").disabled = false;
 } catch {
   document.getElementById("status").textContent = "Dit verzoek is niet meer beschikbaar.";
   document.getElementById("apply").disabled = true;

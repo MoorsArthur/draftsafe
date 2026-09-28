@@ -24,8 +24,11 @@ or the user's OS account is outside this boundary.
 2. Tools checks `sender.id === "draftsafe-bridge@draftsafe.dev"` itself and validates
    again. Its external channel accepts request and status messages only. It never
    routes external messages into its existing user-feature handlers.
-3. Planning reads message identities, recipients for drafts, folder trees and
-   destinations. One slot covers planning, the popup and execution. Cleanup and
+3. The popup opens as soon as the slot is reserved, before planning reads message
+   identities, recipients for drafts, folder trees and destinations. Unsubscribe
+   headers are read four at a time with an eight-second per-message limit;
+   unreadable messages are skipped and shown in the review. One slot covers
+   planning, the popup and execution. Cleanup and
    folder merges are capped at 2000 messages per request, with at most 10 cleanup
    batches, 50 folder changes or 200 unsubscribe items.
 4. The exact request, message identities, destinations and rendered view are
@@ -41,8 +44,9 @@ or the user's OS account is outside this boundary.
    changes show a before/after tree; the preview assumes all displayed changes
    are selected. Unsubscribe destinations from the same sender remain separate.
 7. Closing or ten-minute expiry denies unfinished work. There is a 20-second
-   cooldown after denial and a 30-request/hour in-memory limit. MCP waits up to
-   eleven minutes; HTTP has a twelve-minute backstop. Configure the MCP client's
+   cooldown after denial and a 30-request/hour in-memory limit. Tools returns a
+   request ID promptly; MCP polls the request status over short HTTP calls for up
+   to eleven minutes. HTTP has a twelve-minute backstop. Configure the MCP client's
    tool timeout to at least 730 seconds. A disconnected client does not imply that
    an already-approved action stopped: check history before retrying.
 

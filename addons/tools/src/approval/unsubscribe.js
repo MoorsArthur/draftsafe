@@ -19,24 +19,29 @@ import { decisionList, DecisionError, groupBySender, snapshotMessage, stillSame 
 
 const MAX_URL = 2048;
 const POST_TIMEOUT_MS = 20_000;
+export const HEADER_TIMEOUT_MS = 8_000;
+export const HEADER_CONCURRENCY = 4;
 const BLOCKED_SUFFIXES = [".localhost", ".local", ".internal", ".intranet", ".lan", ".home", ".corp", ".home.arpa", ".localdomain"];
 
 /** Lower-cased header map with array values, whatever the API returned. */
 export async function headersOf(api, id) {
   let raw = {};
-  try {
-    if (api.messages.getHeaders) {
-      raw = (await api.messages.getHeaders(id)) || {};
-    } else {
-      const full = await api.messages.getFull(id, { decodeContent: false });
-      raw = (full && full.headers) || {};
-    }
-  } catch {
-    raw = {};
+  if (api.messages.getHeaders) {
+    raw = (await api.messages.getHeaders(id)) || {};
+  } else {
+    const full = await api.messages.getFull(id, { decodeContent: false });
+    raw = (full && full.headers) || {};
   }
   return Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k.toLowerCase(), (Array.isArray(v) ? v : [v]).map(x => String(x))])
   );
+}
+
+function within(promise, ms) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("message read timed out")), ms);
+  })]).finally(() => clearTimeout(timer));
 }
 
 /** A URL we would POST to, or null. */
@@ -84,28 +89,61 @@ export function originPattern(origin) {
   return `${origin}/*`;
 }
 
-export async function planUnsubscribe(api, input, { fetchImpl = (...a) => globalThis.fetch(...a) } = {}) {
+export async function planUnsubscribe(api, input, { fetchImpl = (...a) => globalThis.fetch(...a), onProgress = () => {}, headerTimeoutMs = HEADER_TIMEOUT_MS } = {}) {
   const snaps = [];
-  for (const it of input.items) {
-    const s = await snapshotMessage(api, it.messageId);
-    s.reason = it.reason;
-    s.inJunk = s.junk || s.folderUses.includes("junk");
-    s.how = unsubscribeMethod(await headersOf(api, s.id));
-    snaps.push(s);
+  const unreadable = [];
+  let next = 0, done = 0;
+  async function worker() {
+    for (;;) {
+      const index = next++;
+      if (index >= input.items.length) return;
+      const it = input.items[index];
+      try {
+        const s = await within((async () => {
+          const snap = await snapshotMessage(api, it.messageId);
+          snap.reason = it.reason;
+          snap.inJunk = snap.junk || snap.folderUses.includes("junk");
+          snap.how = unsubscribeMethod(await headersOf(api, snap.id));
+          return snap;
+        })(), headerTimeoutMs);
+        snaps[index] = s;
+      } catch {
+        unreadable[index] = it.messageId;
+      } finally {
+        onProgress(++done, input.items.length, "headers");
+      }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(HEADER_CONCURRENCY, input.items.length) }, () => worker()));
+  const readable = snaps.filter(Boolean);
+  const skipped = unreadable.filter(Boolean);
 
-  const junkFolders = await api.folders.query({ specialUse: ["junk"] });
-  const junkSenders = new Set(snaps.filter(s => s.inJunk).map(s => s.sender));
-  for (const sender of new Set(snaps.map(s => s.sender))) {
-    if (junkSenders.has(sender) || !junkFolders.length) continue;
-    try {
-      const found = await queryAll(api, { folderId: junkFolders.map(f => f.id), author: sender }, 1);
-      if (found.length) junkSenders.add(sender);
-    } catch { junkSenders.add(sender); } // unknown Junk status defaults off
+  const junkSenders = new Set(readable.filter(s => s.inJunk).map(s => s.sender));
+  const uniqueSenders = [...new Set(readable.map(s => s.sender))];
+  let checked = 0, senderIndex = 0;
+  onProgress(0, uniqueSenders.length, "junk");
+  let junkFolders;
+  try { junkFolders = await within(api.folders.query({ specialUse: ["junk"] }), headerTimeoutMs); }
+  catch { junkFolders = null; }
+  async function checkJunk() {
+    for (;;) {
+      const index = senderIndex++;
+      if (index >= uniqueSenders.length) return;
+      const sender = uniqueSenders[index];
+      try {
+        if (!junkFolders) junkSenders.add(sender);
+        else if (!junkSenders.has(sender) && junkFolders.length) {
+          const found = await within(queryAll(api, { folderId: junkFolders.map(f => f.id), author: sender }, 1), headerTimeoutMs);
+          if (found.length) junkSenders.add(sender);
+        }
+      } catch { junkSenders.add(sender); } // unknown Junk status defaults off
+      finally { onProgress(++checked, uniqueSenders.length, "junk"); }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(HEADER_CONCURRENCY, uniqueSenders.length) }, () => checkJunk()));
   // Distinct mailing lists from the same sender keep separate destinations.
   const groups = new Map();
-  for (const s of snaps) {
+  for (const s of readable) {
     const key = `${s.sender}\n${s.how.url || "manual"}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(s);
@@ -129,11 +167,12 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
     };
   });
 
-  const binding = senders.map(s => [s.sender, s.url, s.items.map(i => [i.id, i.key])]);
+  const binding = { senders: senders.map(s => [s.sender, s.url, s.items.map(i => [i.id, i.key])]), unreadable: skipped };
 
   const view = {
     kind: "unsubscribe",
-    reasons: [...new Set(snaps.map(s => s.reason).filter(Boolean))].slice(0, 20),
+    reasons: [...new Set(readable.map(s => s.reason).filter(Boolean))].slice(0, 20),
+    unreadable: skipped,
     senders: senders.map((s, index) => ({
       index,
       sender: s.sender,
@@ -193,7 +232,9 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
         perSender.push("excluded");
         continue;
       }
-      const fresh = unsubscribeMethod(await headersOf(api, s.pick.id));
+      let fresh;
+      try { fresh = unsubscribeMethod(await within(headersOf(api, s.pick.id), headerTimeoutMs)); }
+      catch { perSender.push("failed"); continue; }
       if (!(await stillSame(api, s.pick)) || fresh.method !== "one_click" || fresh.url !== s.url) { perSender.push("failed"); continue; }
       const pattern = originPattern(s.origin);
       origins.add(pattern);
@@ -216,6 +257,7 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
         items.push({ messageId: m.id, approved: perSender[i] !== "excluded" && perSender[i] !== "manual", result: perSender[i] });
       }
     }
+    for (const messageId of skipped) items.push({ messageId, approved: false, result: "unreadable" });
     return { items };
   }
 

@@ -19,7 +19,7 @@ function fixture() {
   const api: any = fake.api;
   api.runtime.id = "draftsafe-tools@draftsafe.dev";
   api.runtime.getURL = (p: string) => BASE + p;
-  api.windows = { create: vi.fn(async () => ({ id: 55 })), remove: vi.fn(async () => {}) };
+  api.windows = { create: vi.fn(async () => ({ id: 55 })), update: vi.fn(async () => {}), remove: vi.fn(async () => {}) };
   api.permissions = { contains: vi.fn(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) };
   let clock = 1000;
   const manager = createApprovals({ api, store: createStore(api.storage.local), now: () => clock });
@@ -33,7 +33,7 @@ function fixture() {
     const buttons: any = {};
     for (const name of ["apply", "deny", "status"]) buttons[name] = { addEventListener: (_type: string, fn: any) => { listeners[name] = fn; } };
     class MouseEvent { isTrusted: boolean; currentTarget: any; constructor(name: string, trusted: boolean) { this.currentTarget = buttons[name]; this.isTrusted = trusted; } }
-    const win: any = { location: { href: `${BASE}tools/src/ui/approve.html?r=${r.requestId}` },
+    const win: any = { location: { href: api.windows.create.mock.calls.at(-1)?.[0]?.url },
       messenger: { windows: { getCurrent: async () => ({ id: windowId }) }, permissions: api.permissions },
       document: { getElementById: (id: string) => buttons[id] }, MouseEvent, close: vi.fn() };
     return { win, attach: () => manager.attachPage(win, (data: any) => { mutate(data); return () => decision; }),
@@ -67,6 +67,27 @@ describe("approval boundary", () => {
     await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "denied" } }));
     expect(f.api.messages.move).not.toHaveBeenCalled();
     expect((await f.manager.history())[0]).toMatchObject({ status: "denied", kind: "cleanup" });
+  });
+  it("opens and focuses the window before slow unsubscribe headers finish, with visible progress", async () => {
+    const f = fixture(); const m = f.add("News"), other = f.add("News 2");
+    let release!: () => void;
+    f.api.messages.getFull.mockImplementation((id: number) => id === m.id
+      ? new Promise(resolve => { release = () => resolve({ headers: {} }); }) : Promise.resolve({ headers: {} }));
+    const r = await f.request("unsubscribe", { items: [{ messageId: m.id }, { messageId: other.id }] });
+    expect(r.ok).toBe(true);
+    expect(f.api.windows.create).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringContaining("&n=2") }));
+    expect(f.api.windows.update).toHaveBeenCalledWith(55, { drawAttention: true });
+    expect(f.api.windows.update).toHaveBeenCalledWith(55, { focused: true });
+    expect(await f.status(r)).toMatchObject({ status: "planning", progress: { total: 2 } });
+    const p = f.page(r, { senders: [] });
+    const attached = p.attach();
+    await vi.waitFor(() => expect(p.win.document.getElementById("status").textContent).toContain("van 2 berichten"));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    release();
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ status: "pending", progress: { done: 1, phase: "junk" } }));
+    await attached;
+    p.click("deny");
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "denied" } }));
   });
   it("rejects programmatic clicks, permits one trusted click and consumes it once", async () => {
     const f = fixture(); const a = f.add("A"), b = f.add("B");
@@ -233,6 +254,28 @@ describe("unsubscribe provenance and relay", () => {
     }
     expect(fetchImpl).not.toHaveBeenCalled(); expect(f.fake.forbidden.composeSendMessage).not.toHaveBeenCalled();
   });
+  it("bounds unsubscribe reads to four and records failed or timed-out messages as unreadable", async () => {
+    const f = fixture();
+    const ids = Array.from({ length: 6 }, () => f.add("News").id);
+    let active = 0, peak = 0;
+    f.api.messages.getFull.mockImplementation(async (id: number) => {
+      active++; peak = Math.max(active, peak);
+      try {
+        if (id === ids[0]) return await new Promise(() => {});
+        if (id === ids[1]) throw new Error("offline");
+        await new Promise(resolve => setTimeout(resolve, 2));
+        return { headers };
+      } finally { active--; }
+    });
+    const progress: number[] = [];
+    const plan = await planUnsubscribe(f.api, { items: ids.map(messageId => ({ messageId })) }, { headerTimeoutMs: 20, onProgress: (n: number) => progress.push(n) });
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(progress).toContain(6);
+    expect(plan.view.unreadable).toEqual(expect.arrayContaining([ids[0], ids[1]]));
+    expect(plan.view.senders).toHaveLength(1);
+    const result = await plan.execute({ senders: [{ approved: false }] });
+    expect(result.items.filter((item: any) => item.result === "unreadable")).toHaveLength(2);
+  });
   it("unselected Junk mail defaults its sender off, and distinct lists stay separate", async () => {
     const f = fixture();
     f.add("Unselected junk", "account1://Junk", { headers });
@@ -245,16 +288,18 @@ describe("unsubscribe provenance and relay", () => {
   it("property: refuses unsafe URL protocols, credentials, IPs, local hosts and ports", () => {
     for (const raw of ["http://news.example/u", "mailto:leave@x", "javascript:alert(1)", "https://127.0.0.1/", "https://[::1]/", "https://2130706433/", "https://0x7f000001/", "https://user:pass@news.example/", "https://news.local/", "https://news.example:8443/"]) expect(safeOneClickUrl(raw), raw).toBeNull();
   });
-  it("relay talks only to Tools, polls outcomes, and never accepts a decision", async () => {
+  it("relay acknowledges promptly and polls status separately without a decision API", async () => {
     const api = { runtime: { sendMessage: vi.fn().mockResolvedValueOnce({ ok: true, ready: true }).mockResolvedValueOnce({ ok: true, requestId: "id" }).mockResolvedValueOnce({ ok: true, status: "pending" }).mockResolvedValueOnce({ ok: true, status: "done", outcome: { status: "denied" } }) } };
     const relay = createRelay({ api, sleep: async () => {} });
-    expect(await relay("cleanup", cleanup([1]))).toEqual({ status: "denied" });
+    expect(await relay("cleanup", cleanup([1]))).toEqual({ requestId: "id" });
+    expect(await relay.status("id")).toMatchObject({ status: "pending" });
+    expect(await relay.status("id")).toMatchObject({ status: "done", outcome: { status: "denied" } });
     for (const [id, msg] of api.runtime.sendMessage.mock.calls) { expect(id).toBe("draftsafe-tools@draftsafe.dev"); expect(["draftsafe.approval.health", "draftsafe.approval.request", "draftsafe.approval.status"]).toContain(msg.type); }
   });
-  it("relay times out and releases its pending slot without retries", async () => {
-    let time = 0; const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => msg.type.endsWith("health") ? { ok: true, ready: true } : msg.type.endsWith("request") ? { ok: true, requestId: "id" } : { ok: true, status: "pending" }) } };
-    const relay = createRelay({ api, now: () => time, sleep: async () => { time += 100; }, timeoutMs: 100 });
-    await expect(relay("cleanup", cleanup([1]))).rejects.toMatchObject({ code: "timeout" });
+  it("reports an already occupied Tools slot as pending elsewhere", async () => {
+    const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => msg.type.endsWith("health") ? { ok: true, ready: true } : { ok: false, code: "busy" }) } };
+    const relay = createRelay({ api });
+    await expect(relay("cleanup", cleanup([1]))).rejects.toMatchObject({ code: "pending_elsewhere" });
     expect(api.runtime.sendMessage.mock.calls.filter(([, m]) => m.type.endsWith("request"))).toHaveLength(1);
   });
   it("wakes Tools after a suspended background and waits for its late startup", async () => {
@@ -270,7 +315,7 @@ describe("unsubscribe provenance and relay", () => {
       return { ok: true, status: "done", outcome: { status: "denied" } };
     }) } };
     const relay = createRelay({ api, now: () => time, sleep: async ms => { time += ms; } });
-    expect(await relay("cleanup", cleanup([1]))).toEqual({ status: "denied" });
+    expect(await relay("cleanup", cleanup([1]))).toEqual({ requestId: "id" });
     expect(checks).toBe(3);
     expect(api.runtime.sendMessage.mock.calls.filter(([, m]) => m.type.endsWith("request"))).toHaveLength(1);
   });

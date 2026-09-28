@@ -27,6 +27,7 @@ export interface BridgeClientOptions {
 
 const UNAVAILABLE =
   "Cannot reach Thunderbird. Make sure Thunderbird is running and the Draftsafe add-on is installed and enabled.";
+const APPROVAL_ROUTES = new Set(["requests.cleanup", "requests.unsubscribe", "requests.folders", "messages.setTags", "messages.markRead", "followups.set", "drafts.create"]);
 
 export class BridgeClient implements BridgeCaller {
   private conn: ConnectionInfo | null = null;
@@ -49,12 +50,12 @@ export class BridgeClient implements BridgeCaller {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(params),
-      signal: AbortSignal.timeout(this.timeoutMs),
+      signal: AbortSignal.timeout(route.startsWith("requests.") || APPROVAL_ROUTES.has(route) ? Math.min(this.timeoutMs, 15_000) : this.timeoutMs),
       redirect: "error",
     });
   }
 
-  async call<T = unknown>(route: string, params: Record<string, unknown> = {}): Promise<T> {
+  private async callOnce<T = unknown>(route: string, params: Record<string, unknown> = {}): Promise<T> {
     let res: Response | null = null;
     // Two attempts: the second re-reads the connection file, which changes
     // whenever Thunderbird restarts (new port and token). Retrying is safe
@@ -67,6 +68,11 @@ export class BridgeClient implements BridgeCaller {
         res = await this.post(this.conn, route, params);
       } catch (e) {
         const name = (e as Error)?.name;
+        const code = ((e as { cause?: { code?: string } })?.cause?.code ?? (e as { code?: string })?.code) || "";
+        if (attempt === 0 && code === "ECONNREFUSED") continue;
+        if (route === "requests.status" && attempt === 0) { this.conn = null; continue; }
+        if (route === "requests.status") throw new BridgeError("Approval status could not be confirmed; check Thunderbird history.", "approval_interrupted");
+        if (APPROVAL_ROUTES.has(route)) throw new BridgeError("Could not confirm whether Tools received the request; check approval history.", "delivery_unknown");
         if (name === "TimeoutError" || name === "AbortError") {
           throw new BridgeError("Thunderbird did not answer in time.", "timeout");
         }
@@ -74,8 +80,6 @@ export class BridgeClient implements BridgeCaller {
         // Only a refused connection is safe to retry: the request provably
         // never reached Thunderbird. A reset mid-request might have run a
         // mutation (e.g. created a draft), so it is reported, not retried.
-        const code = ((e as { cause?: { code?: string } })?.cause?.code ?? (e as { code?: string })?.code) || "";
-        if (attempt === 0 && code === "ECONNREFUSED") continue;
         throw new BridgeError(code === "ECONNREFUSED" ? UNAVAILABLE : `${UNAVAILABLE} (${code || name})`, "unavailable");
       }
       if (res.status === 401 && attempt === 0) {
@@ -98,5 +102,25 @@ export class BridgeClient implements BridgeCaller {
       throw new BridgeError(message, code, res.status);
     }
     return payload.result as T;
+  }
+
+  async call<T = unknown>(route: string, params: Record<string, unknown> = {}): Promise<T> {
+    const deadline = Date.now() + 11 * 60 * 1000;
+    const initial = await this.callOnce<T | { requestId: string }>(route, params);
+    if (!APPROVAL_ROUTES.has(route)) return initial as T;
+    if (!initial || typeof initial !== "object" || !("requestId" in initial) ||
+        typeof initial.requestId !== "string" || !/^[A-Za-z0-9_-]{24}$/.test(initial.requestId)) return initial as T;
+    let lastStatus = "pending";
+    for (;;) {
+      if (Date.now() >= deadline) throw new BridgeError(
+        lastStatus === "planning" ? "Tools is still preparing the approval request." : "Approval timed out. Check Thunderbird history before retrying.",
+        lastStatus === "planning" ? "planning" : "timeout"
+      );
+      const state = await this.callOnce<{ status: string; outcome?: T }>("requests.status", { requestId: initial.requestId });
+      if (state.status === "done") return state.outcome as T;
+      if (state.status !== "planning" && state.status !== "pending") throw new BridgeError("Approval status was invalid.", "approval_interrupted");
+      lastStatus = state.status;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
 }

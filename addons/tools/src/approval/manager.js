@@ -78,6 +78,13 @@ function reasonsOf(kind, view) {
   return list.filter(Boolean).map(r => r.slice(0, 300)).slice(0, 10);
 }
 
+function itemCount(kind, input) {
+  if (kind === "unsubscribe") return input.items.length;
+  if (kind === "cleanup") return input.batches.reduce((sum, batch) => sum + batch.messageIds.length, 0);
+  if (kind === "folders") return input.changes.length;
+  return Array.isArray(input.params?.messageIds) ? input.params.messageIds.length : 1;
+}
+
 export function createApprovals({
   api,
   store,
@@ -119,7 +126,7 @@ export function createApprovals({
     slot.state = "done";
     timers.clearTimeout(slot.timer);
     let final = result;
-    if (!final) {
+    if (!final && slot.plan) {
       try {
         final = await slot.plan.execute(denyAll(slot)); // nothing approved: builds zero counts only
       } catch {
@@ -152,19 +159,43 @@ export function createApprovals({
 
     if (pending) return fail("busy");
     // Reserve the single planning/window slot before mailbox reads.
-    let markReady;
-    const slot = { requestId: token(18), kind, state: "planning", ready: new Promise(r => (markReady = r)) };
+    const count = itemCount(kind, input);
+    const slot = { requestId: token(18), kind, state: "planning", count,
+      progress: { done: 0, total: count, phase: kind === "unsubscribe" ? "headers" : "items" } };
     pending = slot;
     recent.push(t);
     slot.createdAt = t;
     slot.deadline = t + APPROVAL_TIMEOUT_MS;
-    slot.timer = timers.setTimeout(() => {
-      finish(slot, "expired").catch(() => {});
-      markReady();
-    }, APPROVAL_TIMEOUT_MS);
+    slot.timer = timers.setTimeout(() => { finish(slot, "expired").catch(() => {}); }, APPROVAL_TIMEOUT_MS);
     try {
-      await log({ requestId: slot.requestId, at: t, kind, status: "planning" });
-      const plan = await PLANNERS[kind](api, input, { fetchImpl });
+      const win = await api.windows.create({
+        type: "popup", url: `${pageBase}?r=${slot.requestId}&n=${slot.count}`,
+        width: 780, height: 720,
+      });
+      slot.windowId = win && win.id;
+      if (slot.windowId === undefined) throw new Error("approval window did not open");
+      api.windows.update(slot.windowId, { drawAttention: true }).catch(() => {})
+        .then(() => api.windows.update(slot.windowId, { focused: true })).catch(() => {});
+      if (pending !== slot || slot.state !== "planning") {
+        api.windows.remove(slot.windowId).catch(() => {});
+        return { ok: true, requestId: slot.requestId };
+      }
+      log({ requestId: slot.requestId, at: t, kind, status: "planning" }).catch(() => {});
+      void prepare(slot, input);
+      return { ok: true, requestId: slot.requestId };
+    } catch (e) {
+      timers.clearTimeout(slot.timer);
+      if (pending === slot) pending = null;
+      if (slot.windowId !== undefined) api.windows.remove(slot.windowId).catch(() => {});
+      console.error("draftsafe: approval window failed", e);
+      return fail("failed");
+    }
+  }
+
+  async function prepare(slot, input) {
+    const kind = slot.kind;
+    try {
+      const plan = await PLANNERS[kind](api, input, { fetchImpl, onProgress: (done, total, phase) => { slot.progress = { done, total, phase }; } });
       if (pending !== slot || slot.state !== "planning") return { ok: true, requestId: slot.requestId };
       plan.readLength = () => (kind === "cleanup" ? plan.view.batches : kind === "unsubscribe" ? plan.view.senders : plan.view.changes);
       slot.plan = plan;
@@ -173,33 +204,18 @@ export function createApprovals({
       await log({ requestId: slot.requestId, at: slot.createdAt, kind, status: "pending",
         summary: summarize(kind, plan.view), reasons: reasonsOf(kind, plan.view) });
       if (pending !== slot || slot.state !== "planning") return { ok: true, requestId: slot.requestId };
-      const win = await api.windows.create({
-        type: "popup",
-        url: `${pageBase}?r=${slot.requestId}`,
-        width: 780,
-        height: 720,
-      });
-      slot.windowId = win && win.id;
-      if (pending !== slot || slot.state !== "planning") {
-        if (slot.windowId !== undefined) await api.windows.remove(slot.windowId).catch(() => {});
-      } else { slot.state = "open"; }
-      markReady();
-      return { ok: true, requestId: slot.requestId };
+      if (pending === slot && slot.state === "planning") slot.state = "open";
     } catch (e) {
-      timers.clearTimeout(slot.timer);
-      await log({ requestId: slot.requestId, status: "refused", decidedAt: now(), code: e instanceof FolderRuleError ? e.code : "failed" });
-      if (pending === slot) pending = null;
-      markReady();
-      if (slot.windowId !== undefined) api.windows.remove(slot.windowId).catch(() => {});
+      if (pending !== slot || slot.state !== "planning") return;
+      await finish(slot, "refused", { code: e instanceof FolderRuleError || e instanceof ApprovalInputError ? e.code : "failed" });
       if (!(e instanceof FolderRuleError)) console.error("draftsafe: approval request failed", e);
-      return fail(e instanceof FolderRuleError || e instanceof ApprovalInputError ? e.code : "failed");
     }
   }
 
   function status(requestId) {
     sweep();
     if (typeof requestId !== "string" || !REQUEST_ID_RE.test(requestId)) return fail("unknown_request");
-    if (pending && pending.state !== "done" && pending.requestId === requestId) return { ok: true, status: "pending" };
+    if (pending && pending.state !== "done" && pending.requestId === requestId) return { ok: true, status: pending.state === "planning" ? "planning" : "pending", progress: pending.progress };
     const o = outcomes.get(requestId);
     return o ? { ok: true, status: "done", outcome: o.outcome } : fail("unknown_request");
   }
@@ -222,15 +238,19 @@ export function createApprovals({
     const slot = pending;
     if (!slot || slot.state !== "open" || typeof requestId !== "string" || slot.requestId !== requestId) return null;
     if (!sender || sender.id !== api.runtime.id) return null;
-    if (sender.url !== `${pageBase}?r=${requestId}`) return null;
+    if (sender.url !== `${pageBase}?r=${requestId}&n=${slot.count}`) return null;
     if (!sender.tab || slot.windowId === undefined || sender.tab.windowId !== slot.windowId) return null;
     return slot;
   }
 
   async function view(msg, sender) {
-    if (pending && pending.state === "planning") await pending.ready;
+    if (pending && pending.state === "planning" && pending.requestId === msg?.requestId) {
+      const slot = pending;
+      if (sender?.id === api.runtime.id && sender.url === `${pageBase}?r=${slot.requestId}&n=${slot.count}` && sender.tab?.windowId === slot.windowId)
+        return { status: "planning", progress: slot.progress };
+    }
     const slot = slotFor(sender, msg && msg.requestId);
-    if (!slot) throw new PageError("This request is no longer open.");
+    if (!slot) return { status: "done" };
     return {
       requestId: slot.requestId,
       nonce: slot.nonce,
@@ -279,7 +299,7 @@ export function createApprovals({
 
   function onWindowRemoved(windowId) {
     const slot = pending;
-    if (slot && slot.state === "open" && slot.windowId === windowId) {
+    if (slot && ["planning", "open"].includes(slot.state) && slot.windowId === windowId) {
       finish(slot, "closed").catch(() => {});
     }
   }
@@ -299,7 +319,15 @@ export function createApprovals({
     const win = await page.messenger.windows.getCurrent();
     const requestId = new URL(page.location.href).searchParams.get("r");
     const sender = { id: api.runtime.id, url: page.location.href, tab: { windowId: win.id } };
-    const data = await view({ requestId }, sender);
+    let data = await view({ requestId }, sender);
+    while (data.status === "planning") {
+      page.document.getElementById("status").textContent = data.progress.phase === "junk"
+        ? `Voorbereiden: ${data.progress.done} van ${data.progress.total} afzenders controleren…`
+        : `Voorbereiden: ${data.progress.done} van ${data.progress.total} ${data.progress.phase === "headers" ? "berichten" : "onderdelen"}…`;
+      await new Promise(resolve => timers.setTimeout(resolve, 250));
+      data = await view({ requestId }, sender);
+    }
+    if (data.status === "done") throw new PageError("This request is no longer open.");
     const readDecision = render(data);
     const apply = page.document.getElementById("apply");
     const deny = page.document.getElementById("deny");

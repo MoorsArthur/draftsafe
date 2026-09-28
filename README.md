@@ -89,6 +89,11 @@ claude mcp add -s user draftsafe -- node /absolute/path/to/thunderbird-mcp/dist/
 
 Configure your MCP client to allow a **730-second tool timeout** for approval requests.
 Shorter client deadlines do not cancel a Thunderbird request; check its history before retrying.
+The approval window opens while Draftsafe prepares the plan and shows progress for
+unsubscribe message reads. Draftsafe then polls for the decision over short requests.
+The window requests focus and attention, but GNOME Wayland may prevent an add-on
+from switching workspaces or raising it above the active application. If it does
+not appear in front, check Thunderbird's windows and the activity overview.
 
 After Thunderbird starts, the bridge writes the connection file:
 

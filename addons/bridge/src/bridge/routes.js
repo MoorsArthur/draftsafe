@@ -4,13 +4,19 @@ import { VALIDATORS } from "../../../shared/lib/approval-schema.js";
 import { STATE_ROUTES, validateStateRequest } from "../../../shared/lib/state-request.js";
 import { BridgeError } from "./validate.js";
 
-export const ROUTE_NAMES = Object.freeze([...BASE_NAMES, "requests.cleanup", "requests.unsubscribe", "requests.folders"]);
+export const ROUTE_NAMES = Object.freeze([...BASE_NAMES, "requests.cleanup", "requests.unsubscribe", "requests.folders", "requests.status"]);
 export function createRoutes({ ops, version, relay = async () => { throw new BridgeError("unavailable", "Draftsafe Tools is required for approval."); } }) {
   const routes = { ...baseRoutes({ ops, version }) };
   if (relay.health) {
     const baseHealth = routes.health;
     routes.health = async params => ({ ...(await baseHealth(params)), tools: await relay.health() });
   }
+  routes["requests.status"] = async params => {
+    if (!params || Object.keys(params).length !== 1 || !/^[A-Za-z0-9_-]{24}$/.test(params.requestId))
+      throw new BridgeError("invalid_params", "Invalid approval request id.");
+    if (!relay.status) throw new BridgeError("tools_unavailable", "Draftsafe Tools is required for approval.", 503);
+    return relay.status(params.requestId);
+  };
   for (const route of STATE_ROUTES) {
     routes[route] = async params => {
       await validateStateRequest({ route, params });

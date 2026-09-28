@@ -24,7 +24,7 @@ describe("declared surfaces", () => {
     expect([...ROUTE_NAMES].sort()).toEqual(
       [
         "accounts.list",
-        "folders.detailed", "requests.cleanup", "requests.unsubscribe", "requests.folders",
+        "folders.detailed", "requests.cleanup", "requests.unsubscribe", "requests.folders", "requests.status",
         "drafts.create",
         "followups.list",
         "followups.set",
@@ -71,7 +71,7 @@ function prng(seed: number) {
 
 const PARAM_KEYS: Record<string, string[]> = {
   health: [],
-  "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items"], "requests.folders": ["changes"],
+  "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items"], "requests.folders": ["changes"], "requests.status": ["requestId"],
   "accounts.list": [],
   "messages.search": ["query", "folder", "accountId", "includeSubFolders", "from", "to", "subject", "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor"],
   "messages.get": ["messageId", "maxBodyChars"],

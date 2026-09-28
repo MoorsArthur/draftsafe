@@ -5,7 +5,6 @@ import { BridgeError } from "./validate.js";
 export const RELAY_TIMEOUT_MS = 11 * 60 * 1000;
 export const READY_TIMEOUT_MS = 8_000;
 export function createRelay({ api, now = () => Date.now(), sleep = ms => new Promise(r => setTimeout(r, ms)), timeoutMs = RELAY_TIMEOUT_MS, readyTimeoutMs = READY_TIMEOUT_MS }) {
-  let busy = false;
   const send = async (message, timeout) => {
     let timer;
     try {
@@ -39,17 +38,14 @@ export function createRelay({ api, now = () => Date.now(), sleep = ms => new Pro
     }
   };
   const relay = async (kind, payload) => {
-    if (busy) throw new BridgeError("busy", "An approval request is already pending.");
-    busy = true;
     const deadline = now() + timeoutMs;
-    try {
       await waitReady(deadline);
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           // Never replay after a transport failure: Tools may have received
           // the request before its response was lost.
-          response = await send({ type: APPROVAL_REQUEST, kind, payload }, deadline - now());
+          response = await send({ type: APPROVAL_REQUEST, kind, payload }, Math.min(10_000, deadline - now()));
         } catch {
           throw new BridgeError("delivery_unknown", "Could not confirm whether Tools received the request. Check approval history before retrying.", 503);
         }
@@ -58,20 +54,19 @@ export function createRelay({ api, now = () => Date.now(), sleep = ms => new Pro
         // planning; retrying once cannot create a second approval.
         await waitReady(deadline);
       }
-      if (!response?.ok) return { status: "refused", code: response?.code || "unavailable" };
-      for (;;) {
-        if (now() >= deadline) throw new BridgeError("timeout", "Approval timed out. Check Thunderbird history before retrying.");
-        let state;
-        try {
-          state = await send({ type: APPROVAL_STATUS, requestId: response.requestId }, deadline - now());
-        } catch {
-          throw new BridgeError("tools_unavailable", "Tools stopped responding while approval was pending. Check approval history.", 503);
-        }
-        if (!state?.ok) throw new BridgeError("approval_interrupted", "Approval is no longer available. Check Thunderbird history.", 503);
-        if (state.status === "done") return state.outcome;
-        await sleep(500);
-      }
-    } finally { busy = false; }
+      if (response?.code === "busy") throw new BridgeError("pending_elsewhere", "Another approval is pending in Thunderbird.", 409);
+      if (!response?.ok) return { status: "refused", code: response?.code || "tools_unavailable" };
+      return { requestId: response.requestId };
+  };
+  relay.status = async requestId => {
+    try {
+      const state = await send({ type: APPROVAL_STATUS, requestId }, 5_000);
+      if (!state?.ok) throw new BridgeError("approval_interrupted", "Approval is no longer available. Check Thunderbird history.", 503);
+      return state;
+    } catch (e) {
+      if (e instanceof BridgeError) throw e;
+      throw new BridgeError("tools_unavailable", "Tools stopped responding while approval was pending. Check approval history.", 503);
+    }
   };
   relay.health = health;
   return relay;
