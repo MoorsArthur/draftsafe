@@ -31,7 +31,7 @@ or the user's OS account is outside this boundary.
    unreadable messages are skipped and shown in the review. One slot covers
    planning, the popup and execution. Cleanup and
    folder merges are capped at 2000 messages per request, with at most 10 cleanup
-   batches, 50 folder changes or 200 unsubscribe items.
+   batches, 50 folder changes, 200 unsubscribe message IDs or 300 senders.
 4. The exact request, message identities, destinations and rendered view are
    bound to a random one-use nonce and SHA-256 hash. The nonce never crosses the
    extension boundary. Tools rechecks the hash at execution.
@@ -94,8 +94,10 @@ partial success is reported and already-completed moves are not rolled back.
 ## Unsubscribe network boundary
 
 Tools itself reads `List-Unsubscribe` and `List-Unsubscribe-Post` from the selected
-message. Request schemas accept message IDs and reasons, never agent-supplied
-URLs. It requires a HTTPS target and `List-Unsubscribe=One-Click` signalling,
+message. Request schemas accept message IDs and reasons or account-scoped sender
+addresses, never agent-supplied URLs. Sender lookup queries Inbox, Trash, Archive
+and All Mail within Thunderbird, with four workers and a per-sender deadline;
+missing, timed-out and unreadable senders are skipped. It requires a HTTPS target and `List-Unsubscribe=One-Click` signalling,
 and re-reads provenance before execution. The request follows the
 [RFC 8058 POST format](https://www.rfc-editor.org/rfc/rfc8058.html), with no cookies,
 no referrer, no redirect following and a 20-second network timeout. It never GETs

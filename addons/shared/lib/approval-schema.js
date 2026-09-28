@@ -14,6 +14,7 @@ export const APPROVAL_LIMITS = Object.freeze({
   maxBatches: 10,
   maxReasonChars: 500,
   maxUnsubscribeItems: 200,
+  maxUnsubscribeSenders: 300,
   maxFolderChanges: 50,
   maxFolderIdChars: 1000,
   maxPathChars: 300,
@@ -183,10 +184,30 @@ export function validateCleanup(payload) {
   return { batches: out };
 }
 
-/** {items: [{messageId, reason?}]}: no URLs, no addresses; Tools reads the headers itself. */
+/** Choose message IDs or sender addresses; URLs are always read by Tools. */
 export function validateUnsubscribe(payload) {
-  onlyKeys(payload, ["items"], "request");
-  const { items } = payload;
+  onlyKeys(payload, ["items", "senders"], "request");
+  const { items, senders } = payload;
+  if ((items === undefined) === (senders === undefined)) throw bad("provide either items or senders");
+  if (senders !== undefined) {
+    if (!Array.isArray(senders) || senders.length < 1 || senders.length > APPROVAL_LIMITS.maxUnsubscribeSenders) {
+      throw new ApprovalInputError(`senders must contain 1 to ${APPROVAL_LIMITS.maxUnsubscribeSenders} entries`,
+        Array.isArray(senders) && senders.length > APPROVAL_LIMITS.maxUnsubscribeSenders ? "too_many" : "invalid_params");
+    }
+    const seen = new Set();
+    return { senders: senders.map((sender, i) => {
+      const where = `senders[${i}]`;
+      onlyKeys(sender, ["accountId", "address"], where);
+      const { accountId, address } = sender;
+      if (typeof accountId !== "string" || !accountId || accountId.length > 100 || /[\u0000-\u001f\u007f]/.test(accountId)) throw bad(`${where}.accountId is invalid`);
+      if (typeof address !== "string" || address.length > 320 || !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(address)) throw bad(`${where}.address is invalid`);
+      const normalized = address.toLowerCase();
+      const key = `${accountId}\n${normalized}`;
+      if (seen.has(key)) throw bad(`${where} appears more than once`);
+      seen.add(key);
+      return { accountId, address: normalized };
+    }) };
+  }
   if (!Array.isArray(items) || items.length < 1 || items.length > APPROVAL_LIMITS.maxUnsubscribeItems) {
     throw new ApprovalInputError(
       `items must be an array of 1 to ${APPROVAL_LIMITS.maxUnsubscribeItems} messages; split larger requests`,

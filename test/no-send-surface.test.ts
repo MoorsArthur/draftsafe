@@ -71,7 +71,7 @@ function prng(seed: number) {
 
 const PARAM_KEYS: Record<string, string[]> = {
   health: [],
-  "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items"], "requests.folders": ["changes"], "requests.status": ["requestId"],
+  "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items", "senders"], "requests.folders": ["changes"], "requests.status": ["requestId"],
   "accounts.list": [],
   "messages.search": ["query", "folder", "accountId", "includeSubFolders", "from", "to", "subject", "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor"],
   "messages.get": ["messageId", "maxBodyChars"],

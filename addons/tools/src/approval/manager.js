@@ -81,7 +81,7 @@ function reasonsOf(kind, view) {
 }
 
 function itemCount(kind, input) {
-  if (kind === "unsubscribe") return input.items.length;
+  if (kind === "unsubscribe") return (input.items || input.senders).length;
   if (kind === "cleanup") return input.batches.reduce((sum, batch) => sum + batch.messageIds.length, 0);
   if (kind === "folders") return input.changes.length;
   return Array.isArray(input.params?.messageIds) ? input.params.messageIds.length : 1;
@@ -198,7 +198,7 @@ export function createApprovals({
     const count = itemCount(kind, input);
     const auto = trustRemaining() > 0 && (kind !== "state" || TRUSTED_STATE_ROUTES.has(input.route));
     const slot = { requestId: token(18), kind, state: "planning", count, auto,
-      progress: { done: 0, total: count, phase: kind === "unsubscribe" ? "headers" : "items" } };
+      progress: { done: 0, total: count, phase: kind === "unsubscribe" ? (input.senders ? "senders" : "headers") : "items" } };
     pending = slot;
     recent.push(t);
     slot.createdAt = t;

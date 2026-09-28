@@ -156,6 +156,16 @@ account's special-use folder. The whole request is limited to 2000 messages.
 itself. Only approved one-click HTTPS POSTs run; other methods stay manual.
 Junk senders default to Deny. The add-on does not authenticate the sender or DKIM.
 
+Alternatively, provide up to 300 sender addresses with their account IDs:
+
+```json
+{"senders":[{"account_id":"account1","address":"news@example.test"}]}
+```
+
+Tools searches matching mail in that account's Inbox, Trash, Archive and All Mail
+folders, newest first, and uses the first message with a List-Unsubscribe header.
+Senders with no matching header, unreadable mail or a search timeout are skipped.
+
 ```json
 {"changes":[{"action":"create","folder":"account1://","new_name":"Clients"}]}
 ```

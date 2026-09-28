@@ -57,10 +57,13 @@ export const TOOLS: ToolSpec[] = [
     description: desc("Request cleanup batches (request_trash is an alias). Only a real click in the Tools approval window can execute; waits up to 11 minutes. At most 2000 messages total. Trash is recoverable; no permanent deletion."),
     inputSchema: cleanupSchema, route: "requests.cleanup", readOnly: false, untrusted: true as const, toParams: cleanupParams })),
   { name: "request_unsubscribe", title: "Request one-click unsubscribe",
-    description: desc("Request approval to unsubscribe. Tools reads the message headers itself; URLs cannot be supplied. Only approved HTTPS one-click POSTs; mailto and website-only links are manual."),
-    inputSchema: { items: z.array(z.object({ message_id: messageId, reason: z.string().max(500) }).strict()).min(1).max(200) },
+    description: desc("Request approval to unsubscribe. Provide either items with message IDs or senders with account_id and address (up to 300). Tools searches Inbox, Trash, Archive and All Mail inside Thunderbird and reads unsubscribe headers itself; URLs cannot be supplied. Only approved HTTPS one-click POSTs; mailto and website-only links are manual. Missing, timed-out and unreadable senders are skipped."),
+    inputSchema: { items: z.array(z.object({ message_id: messageId, reason: z.string().max(500) }).strict()).min(1).max(200).optional(),
+      senders: z.array(z.object({ account_id: z.string().min(1).max(100), address: z.email().max(320) }).strict()).min(1).max(300).optional() },
     route: "requests.unsubscribe", readOnly: false, untrusted: true,
-    toParams: a => ({ items: (a.items as Record<string, unknown>[]).map(i => pick(i, { message_id: "messageId", reason: "reason" })) }) },
+    toParams: a => a.senders !== undefined
+      ? { senders: (a.senders as Record<string, unknown>[]).map(s => pick(s, { account_id: "accountId", address: "address" })), ...(a.items !== undefined ? { items: a.items } : {}) }
+      : { items: (a.items as Record<string, unknown>[] | undefined)?.map(i => pick(i, { message_id: "messageId", reason: "reason" })) } },
   { name: "request_folder_changes", title: "Request folder changes",
     description: desc("Request create, rename, merge or delete_empty after a real click. folder/into are folder IDs from list_folders_detailed; for create, folder is the parent and new_name is required. Same account, depth at most two; special folders and their ancestors are protected."),
     inputSchema: { changes: z.array(z.object({ action: z.enum(["create", "rename", "merge", "delete_empty"]), folder: z.string().min(1).max(1000), new_name: z.string().max(64).optional(), into: z.string().max(1000).optional() }).strict()).min(1).max(50) },

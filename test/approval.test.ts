@@ -365,6 +365,65 @@ describe("schemas and folder execution", () => {
 
 describe("unsubscribe provenance and relay", () => {
   const headers = { "list-unsubscribe": ["<https://news.example.test/u?id=mailbox>"], "list-unsubscribe-post": ["List-Unsubscribe=One-Click"] };
+  it("resolves the newest sender message with a List-Unsubscribe header inside the named account", async () => {
+    const f = fixture();
+    f.add("Unrelated", "account1://INBOX", { author: "Other <other@example.test>", headers });
+    f.add("Older", "account1://Trash", { author: "News <news@example.test>", date: new Date("2026-08-01"), headers });
+    const newest = f.add("Newest", "account1://Archive", { author: "News <news@example.test>", date: new Date("2026-09-01"), headers });
+    f.add("No header", "account1://INBOX", { author: "News <news@example.test>", date: new Date("2026-09-02") });
+    const p = await planUnsubscribe(f.api, validateUnsubscribe({ senders: [{ accountId: "account1", address: "NEWS@example.test" }] }));
+    expect(f.api.messages.query).toHaveBeenCalledWith(expect.objectContaining({ accountId: "account1", author: "news@example.test", folderId: expect.arrayContaining(["account1://INBOX", "account1://Trash", "account1://Archive"]) }));
+    expect(p.view.senders).toMatchObject([{ sender: "news@example.test", sourceMessageId: newest.id, method: "one_click" }]);
+    expect(p.view.skippedSenders).toEqual([]);
+  });
+  it("reports missing and timed-out senders without approving them", async () => {
+    const f = fixture();
+    f.api.messages.query.mockImplementation(async (q: any) => q.author === "slow@example.test" ? new Promise(() => {}) : { id: null, messages: [] });
+    const p = await planUnsubscribe(f.api, validateUnsubscribe({ senders: [
+      { accountId: "account1", address: "absent@example.test" }, { accountId: "account1", address: "slow@example.test" },
+    ] }), { senderTimeoutMs: 20 });
+    expect(p.view.skippedSenders).toEqual([
+      { accountId: "account1", address: "absent@example.test", result: "not_found" },
+      { accountId: "account1", address: "slow@example.test", result: "timeout" },
+    ]);
+    expect((await p.execute({ senders: [] })).skippedSenders).toEqual(p.view.skippedSenders);
+  });
+  it("finds All Mail and rejects cross-account or malformed sender entries", async () => {
+    const f = fixture();
+    const allMail = folder("[Gmail]/All Mail");
+    f.fake.folders.push(allMail);
+    const m = f.add("News", allMail.id, { author: "News <news@example.test>", headers });
+    const p = await planUnsubscribe(f.api, validateUnsubscribe({ senders: [{ accountId: "account1", address: "news@example.test" }] }));
+    expect(p.view.senders[0].sourceMessageId).toBe(m.id);
+    expect(() => validateUnsubscribe({ items: [{ messageId: m.id }], senders: [{ accountId: "account1", address: "news@example.test" }] })).toThrow();
+    expect(() => validateUnsubscribe({ senders: [{ accountId: "account1", address: "news@example.test", url: "https://evil.example" }] })).toThrow();
+    expect(() => validateUnsubscribe({ senders: Array.from({ length: 301 }, () => ({ accountId: "account1", address: "news@example.test" })) })).toThrow();
+  });
+  it("searches at most four senders concurrently", async () => {
+    const f = fixture();
+    let active = 0, peak = 0;
+    f.api.messages.query.mockImplementation(async () => {
+      active++; peak = Math.max(peak, active);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      active--;
+      return { id: null, messages: [] };
+    });
+    await planUnsubscribe(f.api, validateUnsubscribe({ senders: Array.from({ length: 9 }, (_, i) => ({ accountId: "account1", address: `news${i}@example.test` })) }));
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(peak).toBeGreaterThan(1);
+  });
+  it("auto-executes resolved senders during trust and includes skipped senders", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: true }));
+    const f = fixture(fetchImpl);
+    f.add("News", "account1://INBOX", { author: "News <news@example.test>", headers });
+    f.manager.onTrustMenuClick();
+    const r = await f.request("unsubscribe", { senders: [
+      { accountId: "account1", address: "news@example.test" }, { accountId: "account1", address: "missing@example.test" },
+    ] });
+    expect(f.api.windows.create).not.toHaveBeenCalled();
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "approved", trusted: true, items: [{ result: "unsubscribed" }], skippedSenders: [{ result: "not_found" }] } }));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
   it("only POSTs the message-derived URL after approval and host permission", async () => {
     const f = fixture(); const fetchImpl = vi.fn(async () => ({ ok: true })); const m = f.add("News", "account1://INBOX", { headers });
     const p = await planUnsubscribe(f.api, validateUnsubscribe({ items: [{ messageId: m.id, reason: "stop" }] }), { fetchImpl });

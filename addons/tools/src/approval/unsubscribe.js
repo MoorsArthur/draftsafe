@@ -2,8 +2,8 @@
 // Approved one-click unsubscribes (RFC 8058). The ONLY network request any
 // Draftsafe add-on makes, and it is made only:
 //   - to a URL this add-on read itself from the message's own
-//     List-Unsubscribe header (the agent can only name message ids; the
-//     request schema has no URL field);
+//     List-Unsubscribe header (the agent can name message ids or account-scoped
+//     senders; the request schema has no URL field);
 //   - when the message also carries "List-Unsubscribe-Post:
 //     List-Unsubscribe=One-Click" and the URL is plain https on the default
 //     port to a public-looking host name;
@@ -14,13 +14,14 @@
 // mailto: and web-page unsubscribe links are shown as "manual" and never
 // acted on: no mail is sent and no link is opened or fetched.
 
-import { queryAll } from "../../../shared/lib/mail.js";
-import { decisionList, DecisionError, groupBySender, snapshotMessage, stillSame } from "./common.js";
+import { abortList, queryAll } from "../../../shared/lib/mail.js";
+import { decisionList, DecisionError, groupBySender, senderAddress, snapshotMessage, stillSame } from "./common.js";
 
 const MAX_URL = 2048;
 const POST_TIMEOUT_MS = 20_000;
 export const HEADER_TIMEOUT_MS = 8_000;
 export const HEADER_CONCURRENCY = 4;
+export const SENDER_TIMEOUT_MS = 7_000;
 const BLOCKED_SUFFIXES = [".localhost", ".local", ".internal", ".intranet", ".lan", ".home", ".corp", ".home.arpa", ".localdomain"];
 
 /** Lower-cased header map with array values, whatever the API returned. */
@@ -89,15 +90,87 @@ export function originPattern(origin) {
   return `${origin}/*`;
 }
 
-export async function planUnsubscribe(api, input, { fetchImpl = (...a) => globalThis.fetch(...a), onProgress = () => {}, headerTimeoutMs = HEADER_TIMEOUT_MS } = {}) {
+function searchableFolder(folder) {
+  if (!folder?.id || folder.isVirtual || folder.isUnified || folder.isTag) return false;
+  if ((folder.specialUse || []).some(use => ["inbox", "trash", "archives"].includes(use))) return true;
+  // Thunderbird has no specialUse value for Gmail's All Mail folder.
+  const allMail = /^(?:all mail|alle e-mails?|alle berichten|tous les messages|tous les e-mails|alle nachrichten)$/i;
+  return allMail.test((folder.path || "").split("/").at(-1) || "") || allMail.test(folder.name || "");
+}
+
+async function resolveSender(api, sender, folderIds, timeoutMs) {
+  let listId = null;
+  let expired = false;
+  const timer = setTimeout(() => { expired = true; }, timeoutMs);
+  try {
+    const work = (async () => {
+      const matches = [];
+      let page = await api.messages.query({ accountId: sender.accountId, folderId: folderIds, author: sender.address, messagesPerPage: 100 });
+      for (;;) {
+        listId = page.id;
+        if (expired) throw new Error("sender search timed out");
+        for (const m of page.messages || []) {
+          if (m.folder?.accountId === sender.accountId && folderIds.includes(m.folder.id) && senderAddress(m.author) === sender.address) matches.push(m);
+        }
+        if (!page.id) break;
+        page = await api.messages.continueList(page.id);
+      }
+      matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      let unreadable = false;
+      for (const m of matches) {
+        if (expired) throw new Error("sender search timed out");
+        try {
+          const headers = await headersOf(api, m.id);
+          if ((headers["list-unsubscribe"] || []).length) return { messageId: m.id };
+        } catch { unreadable = true; }
+      }
+      return { result: unreadable ? "unreadable" : "not_found" };
+    })();
+    return await within(work, timeoutMs);
+  } finally {
+    expired = true;
+    clearTimeout(timer);
+    await abortList(api, listId);
+  }
+}
+
+async function resolveSenders(api, senders, onProgress, timeoutMs) {
+  const folders = new Map();
+  const results = Array(senders.length);
+  let next = 0, done = 0;
+  async function worker() {
+    for (;;) {
+      const index = next++;
+      if (index >= senders.length) return;
+      const sender = senders[index];
+      try {
+        if (!folders.has(sender.accountId)) {
+          folders.set(sender.accountId, within(api.folders.query({ accountId: sender.accountId }), timeoutMs));
+        }
+        const folderIds = (await folders.get(sender.accountId)).filter(f => f.accountId === sender.accountId && searchableFolder(f)).map(f => f.id);
+        results[index] = folderIds.length ? await resolveSender(api, sender, folderIds, timeoutMs) : { result: "not_found" };
+      } catch (e) {
+        results[index] = { result: /timed out/.test(String(e)) ? "timeout" : "unreadable" };
+      } finally { onProgress(++done, senders.length, "senders"); }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(HEADER_CONCURRENCY, senders.length) }, () => worker()));
+  return {
+    items: results.filter(r => r.messageId),
+    skippedSenders: results.flatMap((r, i) => r.messageId ? [] : [{ ...senders[i], result: r.result }]),
+  };
+}
+
+export async function planUnsubscribe(api, input, { fetchImpl = (...a) => globalThis.fetch(...a), onProgress = () => {}, headerTimeoutMs = HEADER_TIMEOUT_MS, senderTimeoutMs = SENDER_TIMEOUT_MS } = {}) {
+  const resolved = input.senders ? await resolveSenders(api, input.senders, onProgress, senderTimeoutMs) : { items: input.items, skippedSenders: [] };
   const snaps = [];
   const unreadable = [];
   let next = 0, done = 0;
   async function worker() {
     for (;;) {
       const index = next++;
-      if (index >= input.items.length) return;
-      const it = input.items[index];
+      if (index >= resolved.items.length) return;
+      const it = resolved.items[index];
       try {
         const s = await within((async () => {
           const snap = await snapshotMessage(api, it.messageId);
@@ -110,11 +183,11 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
       } catch {
         unreadable[index] = it.messageId;
       } finally {
-        onProgress(++done, input.items.length, "headers");
+        onProgress(++done, resolved.items.length, "headers");
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(HEADER_CONCURRENCY, input.items.length) }, () => worker()));
+  await Promise.all(Array.from({ length: Math.min(HEADER_CONCURRENCY, resolved.items.length) }, () => worker()));
   const readable = snaps.filter(Boolean);
   const skipped = unreadable.filter(Boolean);
 
@@ -167,12 +240,13 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
     };
   });
 
-  const binding = { senders: senders.map(s => [s.sender, s.url, s.items.map(i => [i.id, i.key])]), unreadable: skipped };
+  const binding = { senders: senders.map(s => [s.sender, s.url, s.items.map(i => [i.id, i.key])]), unreadable: skipped, skippedSenders: resolved.skippedSenders };
 
   const view = {
     kind: "unsubscribe",
     reasons: [...new Set(readable.map(s => s.reason).filter(Boolean))].slice(0, 20),
     unreadable: skipped,
+    skippedSenders: resolved.skippedSenders,
     senders: senders.map((s, index) => ({
       index,
       sender: s.sender,
@@ -258,7 +332,7 @@ export async function planUnsubscribe(api, input, { fetchImpl = (...a) => global
       }
     }
     for (const messageId of skipped) items.push({ messageId, approved: false, result: "unreadable" });
-    return { items };
+    return { items, skippedSenders: resolved.skippedSenders };
   }
 
   return { binding, view, execute, readDecision, originsFor };

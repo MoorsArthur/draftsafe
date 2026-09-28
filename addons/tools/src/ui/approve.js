@@ -56,6 +56,7 @@ export function renderApproval(data) {
   } else if (v.kind === "unsubscribe") {
     key = "senders";
     if (v.unreadable?.length) element("p", `${v.unreadable.length} berichten konden niet worden gelezen en worden overgeslagen (ID's: ${v.unreadable.join(", ")}).`).className = "warning";
+    for (const skipped of v.skippedSenders || []) element("p", `${skipped.address} (${skipped.accountId}) · overgeslagen: ${({ not_found: "geen bericht met uitschrijfheader gevonden", timeout: "zoeken duurde te lang", unreadable: "berichten konden niet worden gelezen" })[skipped.result] || "niet beschikbaar"}`).className = "warning";
     for (const r of v.reasons) reason(r, root);
     element("p", "Uitschrijven bevestigt mogelijk dat je adres actief is. De afzender en bestemming zijn niet door Draftsafe geauthenticeerd.");
     for (const s of v.senders) {

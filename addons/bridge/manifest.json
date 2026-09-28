@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Draftsafe Bridge",
   "short_name": "Draftsafe Bridge",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Read-only mail routes and approval requests for AI agents. No send, move or delete permission.",
   "author": "Arthur Moors",
   "browser_specific_settings": {
