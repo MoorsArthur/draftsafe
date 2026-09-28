@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Draftsafe Tools",
   "short_name": "Draftsafe Tools",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "User-approved mailbox requests, snooze, send later and follow-ups. Only a click in Thunderbird can approve agent requests.",
   "author": "Arthur Moors",
   "browser_specific_settings": {

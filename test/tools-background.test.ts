@@ -12,12 +12,13 @@ const BASE = `moz-extension://uuid/`;
 async function loadTools() {
   const fake = createFakeMessenger();
   let onMessage: ((msg: unknown, sender: unknown) => unknown) | null = null;
+  let onExternal: ((msg: unknown, sender: unknown) => unknown) | null = null;
   const target = {
     ...fake.api,
     runtime: {
       id: ID,
       getURL: (p: string) => `${BASE}${p}`,
-      onMessageExternal: { addListener: vi.fn() },
+      onMessageExternal: { addListener: vi.fn((fn: typeof onExternal) => (onExternal = fn)) },
       onMessage: { addListener: vi.fn((fn: typeof onMessage) => (onMessage = fn)) },
     },
     menus: { create: vi.fn(), onClicked: { addListener: vi.fn() } },
@@ -30,18 +31,35 @@ async function loadTools() {
   const rec = recordApi(target);
   (globalThis as any).messenger = rec.api;
   vi.resetModules();
+  await import("../addons/tools/src/external-receiver.js");
+  const beforeReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
+  const beforeRequest = await onExternal!({ v: 1, type: "draftsafe.approval.request", kind: "cleanup", payload: {} }, { id: "draftsafe-bridge@draftsafe.dev" });
   const mod = await import("../addons/tools/src/background.js");
   await mod.ready;
+  const afterReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
   delete (globalThis as any).messenger;
-  return { fake, rec, onMessage: onMessage! };
+  delete (globalThis as any).draftsafeSetExternalHandler;
+  return { fake, rec, onMessage: onMessage!, onExternal: onExternal!, beforeReady, beforeRequest, afterReady };
 }
 
 describe("draftsafe-tools background (real module)", () => {
   it("registers the request receiver but never touches a bridge", async () => {
-    const { rec } = await loadTools();
+    const { rec, beforeReady, beforeRequest, afterReady } = await loadTools();
+    expect(beforeReady).toEqual({ ok: true, ready: false });
+    expect(beforeRequest).toEqual({ ok: false, code: "not_ready" });
+    expect(afterReady).toEqual({ ok: true, ready: true });
     for (const path of rec.touched) {
       expect(path).not.toMatch(/draftsafeBridge|connectNative|runtime\.connect|runtime\.sendMessage/);
     }
+  });
+
+  it("rejects a request while starting, then accepts one after the background wakes", async () => {
+    const { onExternal } = await loadTools();
+    const sender = { id: "draftsafe-bridge@draftsafe.dev" };
+    expect(await onExternal({ v: 1, type: "draftsafe.approval.request", kind: "bad", payload: {} }, sender))
+      .toEqual({ ok: false, code: "bad_request" });
+    expect(await onExternal({ v: 1, type: "draftsafe.approval.health" }, { id: "evil@x" }))
+      .toEqual({ ok: false, code: "forbidden_sender" });
   });
 
   it("ignores messages from other extensions, content or foreign pages (fuzzed)", async () => {

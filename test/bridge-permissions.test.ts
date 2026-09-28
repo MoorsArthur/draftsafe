@@ -9,7 +9,7 @@
 // permissions Thunderbird requires for it; when Thunderbird is installed, that
 // table is cross-checked against Thunderbird's own API schemas.
 
-import { execFileSync } from "node:child_process";
+import { buildXpis } from "../scripts/build-xpi.mjs";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { buildSmokeTools } from "../scripts/smoke/build-tools.mjs";
@@ -28,7 +28,7 @@ const textFiles = (files: Map<string, Buffer>) =>
   [...files.entries()].filter(([n]) => /\.(js|mjs|json|html|css)$/.test(n)).map(([n, b]) => [n, b.toString("utf8")] as const);
 
 beforeAll(() => {
-  execFileSync(process.execPath, [join(root, "scripts/build-xpi.mjs")], { cwd: root, stdio: "pipe" });
+  buildXpis();
   bridge = readZip(join(root, "dist/draftsafe-bridge.xpi"));
   tools = readZip(join(root, "dist/draftsafe-tools.xpi"));
 });
@@ -110,7 +110,7 @@ describe("draftsafe-tools.xpi (built)", () => {
     expect(m.permissions).not.toContain("messagesDelete");
     for (const [name, text] of textFiles(tools)) {
       expect(/draftsafeBridge|nsIServerSocket|ChromeUtils|Components\.|XMLHttpRequest|WebSocket|onConnectExternal|connectNative/.test(text), name).toBe(false);
-      if (/onMessageExternal/.test(text)) expect(name).toBe("tools/src/background.js");
+      if (/onMessageExternal/.test(text)) expect(name).toBe("tools/src/external-receiver.js");
       if (/\bfetch\s*\(/.test(text)) expect(name).toBe("tools/src/approval/unsubscribe.js");
       expect(text).not.toMatch(/DRAFTSAFE_SMOKE|smoke-hook|testApprove|approval\.decide/);
     }

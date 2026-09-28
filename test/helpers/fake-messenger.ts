@@ -134,7 +134,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
   };
 
   const api = {
-    runtime: { id: "draftsafe-mcp@draftsafe.dev", sendMessage: vi.fn(async (_id: string, msg: any): Promise<any> => msg.type === "draftsafe.approval.request" ? { ok: true, requestId: "r" } : { ok: true, status: "done", outcome: { status: "denied" } }) },
+    runtime: { id: "draftsafe-mcp@draftsafe.dev", sendMessage: vi.fn(async (_id: string, msg: any): Promise<any> => msg.type === "draftsafe.approval.health" ? { ok: true, ready: true } : msg.type === "draftsafe.approval.request" ? { ok: true, requestId: "r" } : { ok: true, status: "done", outcome: { status: "denied" } }) },
     storage: {
       local: {
         get: vi.fn(async (key: string) => (key in storage ? { [key]: structuredClone(storage[key]) } : {})),

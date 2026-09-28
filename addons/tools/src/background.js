@@ -24,7 +24,7 @@ const store = createStore(api.storage.local);
 const approvals = createApprovals({ api, store });
 // Available only to pages belonging to this add-on; never a runtime decision API.
 globalThis.attachApprovalPage = (page, render) => approvals.attachPage(page, render);
-api.runtime.onMessageExternal.addListener((msg, sender) => approvals.handleExternal(msg, sender));
+globalThis.draftsafeSetExternalHandler((msg, sender) => approvals.handleExternal(msg, sender));
 api.windows.onRemoved.addListener(id => approvals.onWindowRemoved(id));
 
 const snooze = createSnooze({ api, store, notify });

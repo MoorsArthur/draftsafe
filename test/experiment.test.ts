@@ -244,6 +244,15 @@ describe("connection file publication (vm harness)", () => {
     expect(JSON.parse(h.files.get(TARGET)!).token).toBe(T2);
   });
 
+  it("replaces a stale connection record with the new startup token", async () => {
+    const h = harness();
+    h.files.set(TARGET, JSON.stringify({ version: 1, port: 1111, token: T1 }));
+    await h.api.start();
+    await h.api.publishConnection(T2);
+    expect(JSON.parse(h.files.get(TARGET)!)).toMatchObject({ port: 5555, token: T2 });
+    expect([...h.files.keys()]).toEqual([TARGET]);
+  });
+
   it("on app shutdown removes its own record synchronously", async () => {
     const h = harness();
     await h.api.start();

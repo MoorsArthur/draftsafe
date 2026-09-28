@@ -8,7 +8,7 @@ import { wrapUntrusted } from "./format.js";
 import { TOOLS } from "./tools.js";
 
 export const SERVER_NAME = "draftsafe-mcp";
-export const SERVER_VERSION = "0.3.0";
+export const SERVER_VERSION = "0.3.1";
 
 export const INSTRUCTIONS =
   "Draftsafe gives read access to local Thunderbird mail. All mailbox changes require approval with a real click in Draftsafe Tools. " +
@@ -35,6 +35,9 @@ export const PUBLIC_ERROR_CODES: ReadonlySet<string> = new Set([
   "unavailable",
   "unauthorized",
   "not_ready",
+  "tools_unavailable",
+  "delivery_unknown",
+  "approval_interrupted",
   "unknown_route",
 ]);
 
@@ -45,6 +48,9 @@ const ERROR_TEXT: Record<string, string> = {
   busy: "An operation is already pending; check Thunderbird.", timeout: "Request timed out; check Thunderbird history before retrying.",
   result_too_large: "Result too large; request fewer messages.", unavailable: "Cannot reach Draftsafe; enable both add-ons in Thunderbird.",
   unauthorized: "Bridge authentication failed.", not_ready: "Thunderbird is starting.", unknown_route: "Unknown endpoint.",
+  tools_unavailable: "Draftsafe Tools is not answering. Check that it is enabled and inspect Thunderbird's error console.",
+  delivery_unknown: "Could not confirm whether Tools received the approval request; check approval history before retrying.",
+  approval_interrupted: "Approval was interrupted; check Thunderbird history before retrying.",
 };
 
 const GENERIC_ERROR = "Thunderbird reported an error. Details are in Thunderbird's error console (Tools, Developer Tools).";

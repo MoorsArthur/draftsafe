@@ -12,6 +12,7 @@ const api = globalThis.messenger;
 const version = api.runtime.getManifest().version;
 
 let secrets = null;
+let retryDelay = 1_000;
 const handleRequest = createRequestHandler({
   getSecrets: () => secrets,
   routes: createRoutes({ ops: createMailOps({ api }), version, relay: createRelay({ api }) }),
@@ -22,12 +23,17 @@ export async function startBridge() {
   try {
     const token = generateToken();
     const { port } = await api.draftsafeBridge.start();
-    secrets = { port, token };
     const { path } = await api.draftsafeBridge.publishConnection(token);
+    secrets = { port, token };
+    retryDelay = 1_000;
     console.info(`draftsafe: bridge listening on 127.0.0.1:${port}, connection file ${path}`);
   } catch (e) {
     secrets = null;
     console.error(`draftsafe: bridge failed to start: ${e && e.message}`);
+    // A profile or snap path can be temporarily unavailable during startup.
+    // Keep trying on this persistent page; start() is idempotent after binding.
+    setTimeout(() => { startBridge(); }, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 60_000);
   }
 }
 

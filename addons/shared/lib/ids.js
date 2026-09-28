@@ -10,4 +10,5 @@ export const TOOLS_ID = "draftsafe-tools@draftsafe.dev";
 // Message types of that one channel (bridge -> tools).
 export const APPROVAL_REQUEST = "draftsafe.approval.request";
 export const APPROVAL_STATUS = "draftsafe.approval.status";
+export const APPROVAL_HEALTH = "draftsafe.approval.health";
 export const APPROVAL_PROTOCOL = 1;

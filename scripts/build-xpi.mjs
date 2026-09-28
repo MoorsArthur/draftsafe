@@ -145,7 +145,7 @@ export function zip(files) {
   return Buffer.concat([...locals, ...centrals, end]);
 }
 
-function main() {
+export function buildXpis() {
   mkdirSync(join(root, "dist"), { recursive: true });
   rmSync(join(root, "dist", "draftsafe-mcp.xpi"), { force: true }); // pre-0.2 single add-on
   for (const name of ADDONS) {
@@ -162,5 +162,5 @@ function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main();
+  buildXpis();
 }

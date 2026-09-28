@@ -7,6 +7,10 @@ import { BridgeError } from "./validate.js";
 export const ROUTE_NAMES = Object.freeze([...BASE_NAMES, "requests.cleanup", "requests.unsubscribe", "requests.folders"]);
 export function createRoutes({ ops, version, relay = async () => { throw new BridgeError("unavailable", "Draftsafe Tools is required for approval."); } }) {
   const routes = { ...baseRoutes({ ops, version }) };
+  if (relay.health) {
+    const baseHealth = routes.health;
+    routes.health = async params => ({ ...(await baseHealth(params)), tools: await relay.health() });
+  }
   for (const route of STATE_ROUTES) {
     routes[route] = async params => {
       await validateStateRequest({ route, params });

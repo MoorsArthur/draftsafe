@@ -8,6 +8,7 @@ import { planFolderChanges } from "../addons/tools/src/approval/folder-changes.j
 import { planUnsubscribe, safeOneClickUrl } from "../addons/tools/src/approval/unsubscribe.js";
 import { planState } from "../addons/tools/src/approval/state.js";
 import { createRelay } from "../addons/bridge/src/bridge/relay.js";
+import { createRoutes } from "../addons/bridge/src/bridge/routes.js";
 import { createMailOps } from "../addons/shared/lib/mail-ops.js";
 
 const BRIDGE = { id: "draftsafe-bridge@draftsafe.dev" };
@@ -245,15 +246,55 @@ describe("unsubscribe provenance and relay", () => {
     for (const raw of ["http://news.example/u", "mailto:leave@x", "javascript:alert(1)", "https://127.0.0.1/", "https://[::1]/", "https://2130706433/", "https://0x7f000001/", "https://user:pass@news.example/", "https://news.local/", "https://news.example:8443/"]) expect(safeOneClickUrl(raw), raw).toBeNull();
   });
   it("relay talks only to Tools, polls outcomes, and never accepts a decision", async () => {
-    const api = { runtime: { sendMessage: vi.fn().mockResolvedValueOnce({ ok: true, requestId: "id" }).mockResolvedValueOnce({ ok: true, status: "pending" }).mockResolvedValueOnce({ ok: true, status: "done", outcome: { status: "denied" } }) } };
+    const api = { runtime: { sendMessage: vi.fn().mockResolvedValueOnce({ ok: true, ready: true }).mockResolvedValueOnce({ ok: true, requestId: "id" }).mockResolvedValueOnce({ ok: true, status: "pending" }).mockResolvedValueOnce({ ok: true, status: "done", outcome: { status: "denied" } }) } };
     const relay = createRelay({ api, sleep: async () => {} });
     expect(await relay("cleanup", cleanup([1]))).toEqual({ status: "denied" });
-    for (const [id, msg] of api.runtime.sendMessage.mock.calls) { expect(id).toBe("draftsafe-tools@draftsafe.dev"); expect(["draftsafe.approval.request", "draftsafe.approval.status"]).toContain(msg.type); }
+    for (const [id, msg] of api.runtime.sendMessage.mock.calls) { expect(id).toBe("draftsafe-tools@draftsafe.dev"); expect(["draftsafe.approval.health", "draftsafe.approval.request", "draftsafe.approval.status"]).toContain(msg.type); }
   });
   it("relay times out and releases its pending slot without retries", async () => {
-    let time = 0; const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => msg.type.endsWith("request") ? { ok: true, requestId: "id" } : { ok: true, status: "pending" }) } };
+    let time = 0; const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => msg.type.endsWith("health") ? { ok: true, ready: true } : msg.type.endsWith("request") ? { ok: true, requestId: "id" } : { ok: true, status: "pending" }) } };
     const relay = createRelay({ api, now: () => time, sleep: async () => { time += 100; }, timeoutMs: 100 });
     await expect(relay("cleanup", cleanup([1]))).rejects.toMatchObject({ code: "timeout" });
+    expect(api.runtime.sendMessage.mock.calls.filter(([, m]) => m.type.endsWith("request"))).toHaveLength(1);
+  });
+  it("wakes Tools after a suspended background and waits for its late startup", async () => {
+    let time = 0;
+    let checks = 0;
+    const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => {
+      if (msg.type.endsWith("health")) {
+        checks++;
+        if (checks === 1) throw new Error("receiving end does not exist");
+        return { ok: true, ready: checks >= 3 };
+      }
+      if (msg.type.endsWith("request")) return { ok: true, requestId: "id" };
+      return { ok: true, status: "done", outcome: { status: "denied" } };
+    }) } };
+    const relay = createRelay({ api, now: () => time, sleep: async ms => { time += ms; } });
+    expect(await relay("cleanup", cleanup([1]))).toEqual({ status: "denied" });
+    expect(checks).toBe(3);
+    expect(api.runtime.sendMessage.mock.calls.filter(([, m]) => m.type.endsWith("request"))).toHaveLength(1);
+  });
+  it("reports a failed health check clearly and never sends a request", async () => {
+    let time = 0;
+    const api = { runtime: { sendMessage: vi.fn(async () => { throw new Error("receiving end does not exist"); }) } };
+    const relay = createRelay({ api, now: () => time, sleep: async ms => { time += ms; }, readyTimeoutMs: 250 });
+    expect(await relay.health()).toEqual({ ready: false, code: "unavailable" });
+    await expect(relay("cleanup", cleanup([1]))).rejects.toMatchObject({ code: "tools_unavailable", status: 503 });
+    expect(api.runtime.sendMessage.mock.calls.every(([, m]) => m.type.endsWith("health"))).toBe(true);
+  });
+  it("includes Tools readiness in the bridge health response", async () => {
+    const api = { runtime: { sendMessage: vi.fn(async () => { throw new Error("missing receiver"); }) } };
+    const relay = createRelay({ api });
+    const routes = createRoutes({ ops: { health: async () => ({ status: "ok" }) }, version: "0.3.1", relay });
+    expect(await routes.health({})).toEqual({ status: "ok", version: "0.3.1", tools: { ready: false, code: "unavailable" } });
+  });
+  it("does not replay an approval request after an ambiguous delivery failure", async () => {
+    const api = { runtime: { sendMessage: vi.fn(async (_id, msg) => {
+      if (msg.type.endsWith("health")) return { ok: true, ready: true };
+      throw new Error("reply lost after delivery");
+    }) } };
+    const relay = createRelay({ api });
+    await expect(relay("cleanup", cleanup([1]))).rejects.toMatchObject({ code: "delivery_unknown" });
     expect(api.runtime.sendMessage.mock.calls.filter(([, m]) => m.type.endsWith("request"))).toHaveLength(1);
   });
 });
