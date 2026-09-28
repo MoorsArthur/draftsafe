@@ -1,7 +1,7 @@
 {
   "name": "draftsafe-mcp",
-  "version": "0.2.0",
-  "description": "Draft-only MCP server and Thunderbird add-ons. The AI side reads, tags and drafts mail and holds no permission to send, move or delete.",
+  "version": "0.3.0",
+  "description": "Read local Thunderbird mail and request mailbox changes with trusted-click approval. No agent send capability.",
   "license": "MIT",
   "type": "module",
   "bin": {

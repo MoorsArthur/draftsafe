@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-// draftsafe-bridge background page: starts the loopback bridge and serves the
-// fixed route table. This add-on has no user interface, no alarms and no
-// messaging with other extensions. Its manifest holds no permission to send,
-// move or delete mail, so neither this code nor anything that compromised it
-// could do so through the MailExtension APIs.
+// Loopback bridge with a fixed read/request route table. Mailbox changes
+// are relayed to Tools for trusted-click approval. No send/move/delete permission.
 
 import { createMailOps } from "./bridge/ops.js";
 import { createRoutes } from "./bridge/routes.js";
 import { createRequestHandler } from "./bridge/server.js";
 import { generateToken } from "./bridge/security.js";
+import { createRelay } from "./bridge/relay.js";
 
 const api = globalThis.messenger;
 const version = api.runtime.getManifest().version;
@@ -16,7 +14,7 @@ const version = api.runtime.getManifest().version;
 let secrets = null;
 const handleRequest = createRequestHandler({
   getSecrets: () => secrets,
-  routes: createRoutes({ ops: createMailOps({ api }), version }),
+  routes: createRoutes({ ops: createMailOps({ api }), version, relay: createRelay({ api }) }),
 });
 api.draftsafeBridge.onRequest.addListener(req => handleRequest(req));
 

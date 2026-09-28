@@ -25,7 +25,7 @@ var LIMITS = Object.freeze({
   // A client has this long to deliver the complete request.
   readTimeoutMs: 10 * 1000,
   // The background page has this long to produce a response.
-  handlerTimeoutMs: 90 * 1000,
+  handlerTimeoutMs: 12 * 60 * 1000,
   // Responses larger than this are replaced by an error (the background page
   // enforces the same cap first; this is the privileged backstop).
   maxResponseBytes: 4 * 1024 * 1024,

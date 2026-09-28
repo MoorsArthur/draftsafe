@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
-// draftsafe-tools background page: the user features (snooze, send later,
-// follow-ups). This add-on has no bridge, no Experiment API and no network
-// listener, and it accepts messages only from its own popups. Nothing outside
-// Thunderbird's own UI can reach it.
+// User features and the bridge-only approval request receiver. No Experiment
+// or network listener. External requests cannot invoke internal feature handlers.
 
 import { collect } from "../../shared/lib/mail.js";
 import { parseWhen, presetById, sendLaterPresets, snoozePresets, tomorrowMorning, nextMondayMorning } from "../../shared/lib/time.js";
@@ -11,6 +9,8 @@ import { createStore } from "./lib/store.js";
 import { createSnooze } from "./features/snooze.js";
 import { createFollowups } from "./features/followup.js";
 import { createSendLater } from "./features/sendlater.js";
+
+import { createApprovals } from "./approval/manager.js";
 
 const api = globalThis.messenger;
 
@@ -21,6 +21,12 @@ function notify(title, message) {
 }
 
 const store = createStore(api.storage.local);
+const approvals = createApprovals({ api, store });
+// Available only to pages belonging to this add-on; never a runtime decision API.
+globalThis.attachApprovalPage = (page, render) => approvals.attachPage(page, render);
+api.runtime.onMessageExternal.addListener((msg, sender) => approvals.handleExternal(msg, sender));
+api.windows.onRemoved.addListener(id => approvals.onWindowRemoved(id));
+
 const snooze = createSnooze({ api, store, notify });
 const followups = createFollowups({ api, store });
 const sendLater = createSendLater({ api, store, notify });
@@ -165,6 +171,7 @@ function keyOf(v) {
 }
 
 const handlers = {
+  "approval.history": () => approvals.history(),
   "snooze.presets": () => presetList(snoozePresets()),
   "snooze.displayed": async msg => {
     const shown = await api.messageDisplay.getDisplayedMessages(msg.tabId);

@@ -17,6 +17,7 @@ async function loadTools() {
     runtime: {
       id: ID,
       getURL: (p: string) => `${BASE}${p}`,
+      onMessageExternal: { addListener: vi.fn() },
       onMessage: { addListener: vi.fn((fn: typeof onMessage) => (onMessage = fn)) },
     },
     menus: { create: vi.fn(), onClicked: { addListener: vi.fn() } },
@@ -24,7 +25,7 @@ async function loadTools() {
     notifications: { create: vi.fn(async () => "n") },
     browserAction: { setBadgeText: vi.fn(async () => {}) },
     messageDisplay: { getDisplayedMessages: vi.fn(async () => []), open: vi.fn() },
-    windows: { create: vi.fn() },
+    windows: { create: vi.fn(), onRemoved: { addListener: vi.fn() } },
   };
   const rec = recordApi(target);
   (globalThis as any).messenger = rec.api;
@@ -36,10 +37,10 @@ async function loadTools() {
 }
 
 describe("draftsafe-tools background (real module)", () => {
-  it("registers no external messaging and never touches a bridge", async () => {
+  it("registers the request receiver but never touches a bridge", async () => {
     const { rec } = await loadTools();
     for (const path of rec.touched) {
-      expect(path).not.toMatch(/External|draftsafeBridge|connectNative|runtime\.connect|runtime\.sendMessage/);
+      expect(path).not.toMatch(/draftsafeBridge|connectNative|runtime\.connect|runtime\.sendMessage/);
     }
   });
 

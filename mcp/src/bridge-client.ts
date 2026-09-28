@@ -37,7 +37,7 @@ export class BridgeClient implements BridgeCaller {
   constructor(opts: BridgeClientOptions = {}) {
     this.loadConnection = opts.loadConnection ?? (() => readConnection());
     this.fetchImpl = opts.fetchImpl ?? ((url, init) => fetch(url, init));
-    this.timeoutMs = opts.timeoutMs ?? 95_000;
+    this.timeoutMs = opts.timeoutMs ?? 730_000;
   }
 
   private async post(conn: ConnectionInfo, route: string, params: Record<string, unknown>): Promise<Response> {

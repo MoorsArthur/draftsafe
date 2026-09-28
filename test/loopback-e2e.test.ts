@@ -18,7 +18,7 @@ let bridge: Awaited<ReturnType<typeof startNodeBridge>>;
 let client: BridgeClient;
 
 beforeAll(async () => {
-  const routes = createRoutes({ ops: createMailOps({ api: fake.api }), version: "e2e" });
+  const routes = createRoutes({ ops: createMailOps({ api: fake.api }), version: "e2e", relay: async () => ({ status: "denied" }) });
   bridge = await startNodeBridge(port => createRequestHandler({ getSecrets: () => ({ port, token }), routes }));
   client = new BridgeClient({ loadConnection: async () => ({ port: bridge.port, token, path: "mem" }) });
   fake.addMessage({ folderId: "account1://INBOX", subject: "Quarterly report", text: "Numbers attached" });
@@ -35,7 +35,8 @@ describe("loopback bridge end to end", () => {
     const msg: any = await client.call("messages.get", { messageId: found.messages[0].id });
     expect(msg.body.text).toBe("Numbers attached");
     const draft: any = await client.call("drafts.create", { to: ["x@example.test"], subject: "Re", body: "ok" });
-    expect(draft).toMatchObject({ saved: true, sent: false });
+    expect(draft).toMatchObject({ status: "denied" });
+    expect(fake.api.messages.saveMessage).not.toHaveBeenCalled();
   });
 
   it("rejects wrong tokens, foreign Host headers and Origin over the wire", async () => {

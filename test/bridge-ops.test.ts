@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMailOps } from "../addons/bridge/src/bridge/ops.js";
-import { createRoutes } from "../addons/bridge/src/bridge/routes.js";
+import { createRoutes } from "../addons/shared/lib/mail-routes.js";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 
 function setup(opts: { withSaveMessage?: boolean } = {}) {

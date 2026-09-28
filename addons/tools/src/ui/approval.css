@@ -1,0 +1,12 @@
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, sans-serif; }
+body { margin: 0; padding: 24px 24px 110px; background: Canvas; color: CanvasText; }
+h1 { font-size: 24px; margin: 0; } h2 { font-size: 18px; } h3 { font-size: 15px; }
+section { border: 1px solid GrayText; border-radius: 6px; padding: 16px; margin: 18px 0; }
+p { margin: 8px 0; } button, select { font: inherit; padding: 8px 14px; }
+label { display: block; padding: 4px 0; overflow-wrap: anywhere; }
+input { margin-right: 8px; } .reason { border-left: 3px solid GrayText; padding-left: 12px; white-space: pre-wrap; }
+.warning { font-weight: 650; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+footer { position: fixed; inset: auto 0 0; padding: 16px 24px; display: flex; gap: 12px; align-items: center; justify-content: flex-end; background: Canvas; border-top: 1px solid GrayText; }
+footer a { margin-right: auto; } details { margin: 10px 0; } summary { cursor: pointer; overflow-wrap: anywhere; }
+.trees { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 600px) { .trees { grid-template-columns: 1fr; } footer { flex-wrap: wrap; } }

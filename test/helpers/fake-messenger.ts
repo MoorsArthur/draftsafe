@@ -54,6 +54,9 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
   const storage: Record<string, unknown> = {};
 
   const folderById = (id: string) => folders.find(f => f.id === id);
+  function folderTree(f: FakeFolder): FakeFolder {
+    return { ...f, subFolders: folders.filter(child => child.accountId === f.accountId && child.path !== f.path && (child.path.slice(0, child.path.lastIndexOf("/")) || "/") === f.path).map(folderTree) };
+  }
   const header = (m: FakeMessage) => ({
     id: m.id,
     headerMessageId: m.headerMessageId,
@@ -131,7 +134,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
   };
 
   const api = {
-    runtime: { id: "draftsafe-mcp@draftsafe.dev" },
+    runtime: { id: "draftsafe-mcp@draftsafe.dev", sendMessage: vi.fn(async (_id: string, msg: any): Promise<any> => msg.type === "draftsafe.approval.request" ? { ok: true, requestId: "r" } : { ok: true, status: "done", outcome: { status: "denied" } }) },
     storage: {
       local: {
         get: vi.fn(async (key: string) => (key in storage ? { [key]: structuredClone(storage[key]) } : {})),
@@ -147,10 +150,10 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
           name: "Work",
           type: "imap",
           identities: [{ id: "id1", name: "Me", email: "me@example.test" }],
-          rootFolder: { ...root, subFolders: folders.filter(f => f.accountId === "account1") },
+          rootFolder: folderTree(root),
         },
       ]),
-      get: vi.fn(async (id: string) => (id === "account1" ? { id, name: "Work", type: "imap", rootFolder: root } : null)),
+      get: vi.fn(async (id: string) => (id === "account1" ? { id, name: "Work", type: "imap", rootFolder: folderTree(root) } : null)),
     },
     folders: {
       query: vi.fn(async (q: { accountId?: string; specialUse?: string[] }) =>
@@ -168,13 +171,22 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
       getSubFolders: vi.fn(async (id: string) =>
         id === root.id ? folders.filter(f => f.accountId === "account1" && f.path.split("/").length === 2).map(f => ({ ...f })) : []
       ),
+      getFolderInfo: vi.fn(async (id: string) => ({ totalMessageCount: [...messages.values()].filter(m => m.folderId === id).length, unreadMessageCount: [...messages.values()].filter(m => m.folderId === id && !m.read).length })),
+      move: vi.fn(async (id: string, into: string) => {
+        const f = folderById(id)!; const parent = folderById(into)!;
+        f.path = `${parent.path}/${f.name}`; f.id = `${parent.id}/${f.name}`; return f;
+      }),
+      rename: vi.fn(async (id: string, name: string) => { const f = folderById(id)!; f.name = name; return f; }),
       create: vi.fn(async (parentId: string, name: string) => {
-        const f: FakeFolder = { id: `${parentId}${name}`, accountId: "account1", name, path: `/${name}` };
+        const parent = parentId === root.id ? root : folderById(parentId)!;
+        const path = `${parent.path === "/" ? "" : parent.path}/${name}`;
+        const f: FakeFolder = { id: `account1:/${path}`, accountId: "account1", name, path };
         folders.push(f);
         return f;
       }),
     },
     messages: {
+      list: vi.fn(async (folderId: string) => page([...messages.values()].filter(m => m.folderId === folderId))),
       get: vi.fn(async (id: number) => {
         const m = messages.get(id);
         if (!m) throw new Error(`Message not found: ${id}`);

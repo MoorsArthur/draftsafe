@@ -24,7 +24,7 @@ import { BridgeError, createDeadline } from "./validate.js";
 
 export const MAX_IN_FLIGHT = 4;
 export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // keep equal to framing.js LIMITS.maxResponseBytes
-export const HANDLER_BUDGET_MS = 80 * 1000; // below framing.js LIMITS.handlerTimeoutMs (90 s)
+export const HANDLER_BUDGET_MS = 80 * 1000; // read-operation budget; approval relays have an eleven-minute budget
 
 const ROUTE_RE = /^\/v1\/([a-z][A-Za-z]{0,30}(?:\.[a-z][A-Za-z]{0,30})?)$/;
 
@@ -115,7 +115,7 @@ export function createRequestHandler({ getSecrets, routes, now = () => Date.now(
     }
     inFlight++;
     try {
-      const result = await routes[name](params, createDeadline(HANDLER_BUDGET_MS, now));
+      const result = await routes[name](params, createDeadline(name.startsWith("requests.") || ["messages.setTags", "messages.markRead", "followups.set", "drafts.create"].includes(name) ? 11 * 60 * 1000 : HANDLER_BUDGET_MS, now));
       return respond({ ok: true, result });
     } catch (e) {
       if (e instanceof BridgeError) {

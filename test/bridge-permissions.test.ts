@@ -10,7 +10,9 @@
 // table is cross-checked against Thunderbird's own API schemas.
 
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { buildSmokeTools } from "../scripts/smoke/build-tools.mjs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -72,7 +74,9 @@ describe("draftsafe-bridge.xpi (built)", () => {
       ["computed API access", /\b(api|messenger|browser)\b(\s*\.\s*[A-Za-z_$][\w$]*)*\s*\[/],
       ["permission requests", /permissions\s*\.\s*request/],
     ];
-    for (const [name, text] of textFiles(bridge)) {
+    for (const [name, source] of textFiles(bridge)) {
+      // Exactly one approved cross-extension call site, to the constant Tools ID.
+      const text = name === "bridge/src/bridge/relay.js" ? source.replace("api.runtime.sendMessage(TOOLS_ID,", "relayToTools(") : source;
       for (const [what, re] of banned) {
         expect(re.test(text), `${name}: ${what} (${re})`).toBe(false);
       }
@@ -81,15 +85,34 @@ describe("draftsafe-bridge.xpi (built)", () => {
 });
 
 describe("draftsafe-tools.xpi (built)", () => {
-  it("has no Experiment, no network listener and no cross-extension messaging", () => {
+  it("instrumentation exists only in the separate smoke build, never in release", () => {
+    const dir = mkdtempSync(join(tmpdir(), "draftsafe-bundle-test-"));
+    try {
+      const out = join(dir, "tools-test.xpi");
+      buildSmokeTools(out);
+      const testBuild = readZip(out);
+      expect(testBuild.get("tools/src/ui/smoke-hook.js")!.toString()).toContain("DRAFTSAFE_SMOKE_READY");
+      expect(testBuild.get("tools/src/ui/approve.js")!.toString()).toContain('import("./smoke-hook.js")');
+      for (const files of [bridge, tools]) {
+        for (const [name, body] of files) {
+          expect(name).not.toMatch(/smoke|test-hook/);
+          expect(body.toString()).not.toMatch(/DRAFTSAFE_SMOKE|smoke-hook|testApprove/);
+        }
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it("has no Experiment or listener; external requests and HTTPS POSTs have single call sites", () => {
     const m = manifestOf(tools);
     expect(m.browser_specific_settings.gecko.id).toBe("draftsafe-tools@draftsafe.dev");
     expect(m.experiment_apis).toBeUndefined();
     expect(m.externally_connectable).toBeUndefined();
-    expect(m.optional_permissions).toBeUndefined();
+    expect(m.optional_permissions).toEqual(["https://*/*"]);
     expect(m.permissions).not.toContain("messagesDelete");
     for (const [name, text] of textFiles(tools)) {
-      expect(/draftsafeBridge|nsIServerSocket|ChromeUtils|Components\.|XMLHttpRequest|WebSocket|\bfetch\s*\(|onMessageExternal|onConnectExternal|connectNative/.test(text), name).toBe(false);
+      expect(/draftsafeBridge|nsIServerSocket|ChromeUtils|Components\.|XMLHttpRequest|WebSocket|onConnectExternal|connectNative/.test(text), name).toBe(false);
+      if (/onMessageExternal/.test(text)) expect(name).toBe("tools/src/background.js");
+      if (/\bfetch\s*\(/.test(text)) expect(name).toBe("tools/src/approval/unsubscribe.js");
+      expect(text).not.toMatch(/DRAFTSAFE_SMOKE|smoke-hook|testApprove|approval\.decide/);
     }
     expect([...tools.keys()].some(n => n.startsWith("bridge/"))).toBe(false);
   });

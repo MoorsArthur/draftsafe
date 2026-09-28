@@ -35,6 +35,8 @@ export const FORBIDDEN_PERMISSIONS = [
  */
 export const API_PERMISSIONS: Record<string, string[]> = {
   "runtime.getManifest": [],
+  "runtime.sendMessage": [],
+  "folders.getFolderInfo": ["accountsRead"],
   "accounts.list": ["accountsRead"],
   "folders.query": ["accountsRead"],
   "messages.get": ["messagesRead"],

@@ -24,6 +24,7 @@ describe("declared surfaces", () => {
     expect([...ROUTE_NAMES].sort()).toEqual(
       [
         "accounts.list",
+        "folders.detailed", "requests.cleanup", "requests.unsubscribe", "requests.folders",
         "drafts.create",
         "followups.list",
         "followups.set",
@@ -39,7 +40,7 @@ describe("declared surfaces", () => {
 
   it("MCP tools map one-to-one onto bridge routes and carry the safety texts", () => {
     for (const t of TOOLS) {
-      expect(t.name).not.toMatch(FORBIDDEN_NAME);
+      if (t.name !== "request_trash") expect(t.name).not.toMatch(FORBIDDEN_NAME);
       expect(ROUTE_NAMES).toContain(t.route);
       expect(t.untrusted).toBe(true);
       expect(t.description, t.name).toMatch(/never sent/i);
@@ -70,6 +71,7 @@ function prng(seed: number) {
 
 const PARAM_KEYS: Record<string, string[]> = {
   health: [],
+  "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items"], "requests.folders": ["changes"],
   "accounts.list": [],
   "messages.search": ["query", "folder", "accountId", "includeSubFolders", "from", "to", "subject", "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor"],
   "messages.get": ["messageId", "maxBodyChars"],
@@ -125,6 +127,7 @@ function forbiddenSpiesOf(fake: ReturnType<typeof createFakeMessenger>) {
   return {
     ...fake.forbidden,
     "messages.move": fake.api.messages.move,
+    "messages.update": fake.api.messages.update,
     "folders.create": fake.api.folders.create,
     "compose.setComposeDetails": fake.api.compose.setComposeDetails,
     "compose.getComposeDetails": fake.api.compose.getComposeDetails,
@@ -140,6 +143,10 @@ describe("property: the real bridge background never sends, moves or deletes", (
     const [m, m2] = ids;
     const calls: [string, object][] = [
       ["health", {}],
+      ["folders.detailed", {}],
+      ["requests.cleanup", { batches: [{ messageIds: [m], action: "trash", reason: "test" }] }],
+      ["requests.unsubscribe", { items: [{ messageId: m, reason: "test" }] }],
+      ["requests.folders", { changes: [{ action: "create", folder: "account1://", newName: "Clients" }] }],
       ["accounts.list", {}],
       ["messages.search", { query: "Hello", folder: "inbox" }],
       ["messages.get", { messageId: m }],
@@ -158,8 +165,10 @@ describe("property: the real bridge background never sends, moves or deletes", (
     }
     for (const [name, spy] of Object.entries(forbiddenSpiesOf(fake))) expect(spy, name).not.toHaveBeenCalled();
     for (const path of rec.touched) expect(Object.keys(API_PERMISSIONS), `touched ${path}`).toContain(path);
-    expect(rec.called).toContain("messages.saveMessage");
-    expect(rec.called).toContain("compose.beginReply");
+    expect(rec.called).toContain("runtime.sendMessage");
+    expect(rec.called).not.toContain("messages.saveMessage");
+    expect(rec.called).not.toContain("compose.beginReply");
+    expect(fake.api.messages.update).not.toHaveBeenCalled();
   });
 
   it("fuzz: random, malformed and smuggled requests on every route", async () => {

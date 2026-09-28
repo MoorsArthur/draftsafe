@@ -2,8 +2,8 @@
   "manifest_version": 2,
   "name": "Draftsafe Bridge",
   "short_name": "Draftsafe Bridge",
-  "version": "0.2.0",
-  "description": "Draft-only local bridge for AI assistants (MCP). Reads, searches and tags mail and saves drafts. It holds no permission to send, move or delete mail.",
+  "version": "0.3.0",
+  "description": "Read-only mail routes and approval requests for AI agents. No send, move or delete permission.",
   "author": "Arthur Moors",
   "browser_specific_settings": {
     "gecko": {
@@ -32,8 +32,14 @@
     "draftsafeBridge": {
       "schema": "bridge/api/schema.json",
       "parent": {
-        "scopes": ["addon_parent"],
-        "paths": [["draftsafeBridge"]],
+        "scopes": [
+          "addon_parent"
+        ],
+        "paths": [
+          [
+            "draftsafeBridge"
+          ]
+        ],
         "script": "bridge/api/implementation.js"
       }
     }

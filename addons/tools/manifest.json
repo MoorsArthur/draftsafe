@@ -2,8 +2,8 @@
   "manifest_version": 2,
   "name": "Draftsafe Tools",
   "short_name": "Draftsafe Tools",
-  "version": "0.2.0",
-  "description": "Snooze, send later and follow-ups for Thunderbird. Has no bridge, no Experiment API and no network listener: only you can use it, from Thunderbird's own menus and buttons.",
+  "version": "0.3.0",
+  "description": "User-approved mailbox requests, snooze, send later and follow-ups. Only a click in Thunderbird can approve agent requests.",
   "author": "Arthur Moors",
   "browser_specific_settings": {
     "gecko": {
@@ -33,7 +33,8 @@
     "alarms",
     "menus",
     "notifications",
-    "storage"
+    "storage",
+    "messages.save"
   ],
   "message_display_action": {
     "default_title": "Snooze",
@@ -49,5 +50,8 @@
     "default_title": "Follow-ups",
     "default_icon": "tools/icons/followup.svg",
     "default_popup": "tools/src/ui/followups-popup.html"
-  }
+  },
+  "optional_permissions": [
+    "https://*/*"
+  ]
 }

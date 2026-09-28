@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { zip } from "../build-xpi.mjs";
+import { buildSmokeTools } from "./build-tools.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const KEEP = process.argv.includes("--keep");
@@ -140,7 +141,7 @@ writeFileSync(
 );
 mkdirSync(join(profile, "extensions"));
 copyFileSync(join(root, "dist", "draftsafe-bridge.xpi"), join(profile, "extensions", `${IDS.bridge}.xpi`));
-copyFileSync(join(root, "dist", "draftsafe-tools.xpi"), join(profile, "extensions", `${IDS.tools}.xpi`));
+buildSmokeTools(join(profile, "extensions", `${IDS.tools}.xpi`));
 const seedDir = join(root, "scripts", "smoke", "seed");
 writeFileSync(
   join(profile, "extensions", `${IDS.seed}.xpi`),
@@ -189,6 +190,16 @@ function ourThunderbirdPids() {
     .map(l => /^(\d+) (.*)$/.exec(l))
     .filter(m => m && Number(m[1]) !== tb.pid && Number(m[1]) !== process.pid && !/xvfb-run|-contentproc|pgrep/.test(m[2]))
     .map(m => Number(m[1]));
+}
+
+function clickOnOurDisplay(point) {
+  const xvfbLine = execFileSync("pgrep", ["-a", "-P", String(tb.pid), "Xvfb"], { encoding: "utf8" }).trim();
+  const display = /\s(:\d+)\s/.exec(xvfbLine)?.[1];
+  const auth = /-auth\s+(\S+)/.exec(xvfbLine)?.[1];
+  if (!display || display === process.env.DISPLAY || !auth) throw new Error("unsafe X display");
+  execFileSync("xte", [`mousemove ${point.x} ${point.y}`, "mouseclick 1"], {
+    env: { PATH: process.env.PATH, DISPLAY: display, XAUTHORITY: auth },
+  });
 }
 
 let mcp = null;
@@ -244,14 +255,29 @@ try {
     if (!m) throw new Error(`not wrapped: ${text.slice(0, 300)}`);
     return JSON.parse(m[2]);
   };
-  const tool = async (name, args = {}) => {
-    const r = await mcp.callTool({ name, arguments: args });
+  const tool = async (name, args = {}, choice = "apply", beforeClick) => {
+    const logStart = log.length;
+    let settled = false;
+    const pending = mcp.callTool({ name, arguments: args }, undefined, { timeout: 730_000 }).finally(() => { settled = true; });
+    void pending.catch(() => {}); // cleanup must still run if the UI driver fails
+    if (name.startsWith("request_") || ["set_tags", "mark_read", "set_followup", "create_draft"].includes(name)) {
+      const geometry = await waitFor("approval page", () => {
+        const match = /DRAFTSAFE_SMOKE_READY:(\d+),(\d+),(\d+),(\d+)/.exec(log.slice(logStart).join(""));
+        if (match) return { apply: { x: +match[1], y: +match[2] }, deny: { x: +match[3], y: +match[4] } };
+        return settled ? { refused: true } : null;
+      }, 30_000);
+      if (!geometry.refused) {
+        if (beforeClick) await beforeClick();
+        clickOnOurDisplay(geometry[choice]);
+      }
+    }
+    const r = await pending;
     if (r.isError) throw new Error(`${name}: ${r.content[0].text}`);
     return unwrap(r);
   };
 
   const { tools } = await mcp.listTools();
-  check("MCP lists exactly the nine draft-only tools", tools.length === 9 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
+  check("MCP lists fourteen read and approval tools", tools.length === 14 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
 
   const accounts = await tool("list_accounts");
   const pop = accounts.accounts.find(a => a.identities.length);
@@ -294,7 +320,7 @@ try {
     subject: "Smoke draft (new)",
     body: "This is a new draft from the smoke test. It must never be sent.",
   });
-  check("create_draft (new) saves and reports sent:false", newDraft.saved === true && newDraft.sent === false, newDraft.draft?.folder?.name);
+  check("create_draft (new) saves and reports sent:false", newDraft.status === "approved" && newDraft.saved === true && newDraft.sent === false, newDraft.draft?.folder?.name);
 
   const reply = await tool("create_draft", { reply_to_message_id: inbox.messages.find(m => m.subject === "Quarterly report").id, body: "Thanks, looks good." });
   check("create_draft (reply) saves via a compose window and reports sent:false", reply.saved === true && reply.sent === false, reply.draft?.subject);
@@ -306,6 +332,36 @@ try {
   const outboxQ = await mcp.callTool({ name: "search_messages", arguments: { folder: "outbox" } });
   const count = r => (r.isError ? 0 : unwrap(r).messages.length);
   check("nothing in Sent or Outbox (via the bridge)", count(sentQ) === 0 && count(outboxQ) === 0, `sent ${sentQ.isError ? "no folder" : count(sentQ)}, outbox ${outboxQ.isError ? "no folder" : count(outboxQ)}`);
+
+  // Approval boundaries with real trusted X11 pointer clicks on our Xvfb only.
+  const detailed = await tool("list_folders_detailed", { account_id: pop.id });
+  check("detailed folders include counts and dates", detailed.folders.some(f => f.specialUse.includes("inbox") && f.count === 3 && f.oldest && f.newest));
+  const request = { batches: [{ message_ids: [lunch.id], action: "trash", reason: "Smoke approval boundary" }] };
+  const denied = await tool("request_cleanup", request, "deny", async () => {
+    const stillInbox = await tool("get_message", { message_id: lunch.id });
+    check("synthetic click does not approve", stillInbox.message.folder.specialUse.includes("inbox"));
+  });
+  check("deny changes nothing", denied.status === "denied" && (await tool("get_message", { message_id: lunch.id })).message.folder.specialUse.includes("inbox"));
+  await sleep(21_000); // denial cooldown is a release safety rule
+  const allowed = await tool("request_trash", request);
+  const trashed = await tool("search_messages", { folder: "trash", account_id: pop.id });
+  check("real click moves only approved messages to special-use Trash", allowed.batches?.[0]?.moved === 1 && trashed.messages.some(m => m.subject === lunch.subject));
+  const moved = await tool("request_cleanup", { batches: [{ message_ids: [injected.id], action: "move", folder: "Review/Source", create_folder: true, reason: "Create reviewed destination" }] });
+  check("approved move creates two-level user folder", moved.batches?.[0]?.moved === 1);
+  const tree = await tool("list_folders_detailed", { account_id: pop.id });
+  const source = tree.folders.find(f => f.path === "/Review/Source");
+  const parent = tree.folders.find(f => f.path === "/Review");
+  const created = await tool("request_folder_changes", { changes: [{ action: "create", folder: parent.id, new_name: "Target" }] });
+  check("approved folder create works", created.changes?.[0]?.result === "done");
+  const target = (await tool("list_folders_detailed", { account_id: pop.id })).folders.find(f => f.path === "/Review/Target");
+  const merged = await tool("request_folder_changes", { changes: [{ action: "merge", folder: source.id, into: target.id }] });
+  const mergedMessages = await tool("search_messages", { folder: target.id });
+  check("approved merge moves messages and removes empty source recoverably", merged.changes?.[0]?.result === "done" && mergedMessages.messages.some(m => m.subject === injected.subject));
+  const forbiddenMove = await tool("request_cleanup", { batches: [{ message_ids: [mergedMessages.messages[0].id], action: "move", folder: "Trash", reason: "Must refuse special destination" }] });
+  check("move to special-use folder refused without approval", forbiddenMove.status === "refused" && forbiddenMove.code === "forbidden_folder");
+  const inboxFolder = detailed.folders.find(f => f.specialUse.includes("inbox"));
+  const forbiddenRename = await tool("request_folder_changes", { changes: [{ action: "rename", folder: inboxFolder.id, new_name: "Renamed" }] });
+  check("special-use folder rename refused", forbiddenRename.status === "refused" && forbiddenRename.code === "forbidden_folder");
 
   // ---------------------------------------------------- forbidden attempts --
   const forbiddenTool = await mcp.callTool({ name: "send_message", arguments: { message_id: lunch.id } }).catch(e => ({ isError: true, content: [{ text: String(e) }] }));

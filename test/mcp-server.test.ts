@@ -18,7 +18,7 @@ async function connect(bridge: BridgeCaller) {
 const text = (r: any) => r.content[0].text as string;
 
 describe("MCP server (mocked bridge)", () => {
-  it("exposes exactly the nine safe tools with annotations", async () => {
+  it("exposes exactly the fourteen read and approval tools with annotations", async () => {
     const client = await connect({ call: vi.fn() });
     const { tools } = await client.listTools();
     expect(tools.map(t => t.name).sort()).toEqual([
@@ -26,8 +26,10 @@ describe("MCP server (mocked bridge)", () => {
       "get_message",
       "get_thread",
       "list_accounts",
+      "list_folders_detailed",
       "list_followups",
       "mark_read",
+      "request_cleanup", "request_folder_changes", "request_trash", "request_unsubscribe",
       "search_messages",
       "set_followup",
       "set_tags",
@@ -35,6 +37,7 @@ describe("MCP server (mocked bridge)", () => {
     for (const t of tools) {
       expect(t.description).toMatch(/never sent/);
       expect(t.annotations?.destructiveHint).toBe(false);
+      expect(t.annotations?.openWorldHint).toBe(t.name === "request_unsubscribe");
     }
     expect(tools.find(t => t.name === "get_message")!.annotations?.readOnlyHint).toBe(true);
     expect(tools.find(t => t.name === "create_draft")!.annotations?.readOnlyHint).toBe(false);
@@ -112,7 +115,7 @@ describe("MCP server (mocked bridge)", () => {
     });
     const r: any = await client.callTool({ name: "get_message", arguments: { message_id: 9 } });
     expect(r.isError).toBe(true);
-    expect(text(r)).toBe("message 9 not found (not_found)");
+    expect(text(r)).toBe("Message or folder not found; search again. (not_found)");
   });
 
   it("never passes through error messages it did not write itself", async () => {
