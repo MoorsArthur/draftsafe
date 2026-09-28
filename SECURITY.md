@@ -1,8 +1,9 @@
 # Security model
 
 Draftsafe separates the AI-facing bridge from the add-on that can move mail.
-Every agent-requested mailbox change, including tags, read flags and drafts,
-requires a trusted click in a Thunderbird approval window. Reading needs no click.
+Every agent-requested mailbox change normally requires a trusted click in a
+Thunderbird approval window. A Thunderbird click can start a one-hour trust
+session for cleanup, unsubscribe, folder, tag and read-flag requests. Reading needs no click.
 
 ## Permission boundary
 
@@ -39,6 +40,16 @@ or the user's OS account is outside this boundary.
    checked. The private decision function has no runtime message endpoint.
    `element.click()` and dispatched events cannot approve. The slot is consumed
    before asynchronous execution, so a repeated click cannot replay it.
+   A native `menus.onClicked` event or the page's secondary trusted click can
+   start an in-memory trust session. No runtime or external message can start
+   or extend it. The menu click stops it immediately; a timer ends it 60 minutes
+   after the starting click. Restart or add-on reload also clears it. Start and
+   end show Thunderbird notifications, and the menu displays minutes remaining.
+   Requests arriving during trust still reserve the single slot, validate and
+   plan normally, then execute with the same rechecks. Revocation during planning
+   denies the queued request. Draft and follow-up requests still open a window.
+   History records `approved_trusted` with the original summary and reasons;
+   MCP receives `status: approved` plus `trusted: true`.
 6. Allow/Deny is per batch or folder change, with per-message exclusions. Reasons,
    sender names, subjects, draft content and folder names are text-only. Folder
    changes show a before/after tree; the preview assumes all displayed changes
@@ -60,7 +71,8 @@ partial success is reported and already-completed moves are not rolled back.
 - Trash always means a move to the same account's unique special-use Trash.
   Archive similarly uses its special-use Archives. No permanent deletion, empty
   trash, automatic sending or agent-triggered snooze exists.
-- Move destinations must be ordinary same-account folders at depth at most two.
+- Move destinations must be ordinary same-account folders at depth at most two,
+  or the account's dedicated top-level Inbox for restoration.
   New folder names use the documented letter/digit/punctuation allowlist and
   cannot impersonate special folders. Creation happens only after approval.
 - Special-use folders, their ancestors, virtual/unified/tag folders, and the
@@ -90,8 +102,10 @@ no referrer, no redirect following and a 20-second network timeout. It never GET
 an unsubscribe page or sends a mailto message. Website-only/mailto entries are
 plain-text manual instructions.
 
-The approval click requests per-origin optional host permission. Lack of
-permission prevents the POST; requested origins are removed after execution.
+The approval click requests per-origin optional host permission. A trusted
+unsubscribe runs without another click, so it can POST only if its per-origin
+permission is already granted. Lack of permission returns `permission_denied`;
+requested origins are removed after execution.
 Senders with requested mail in Junk, or matching mail found in a Junk folder,
 default to Deny and display a warning. Excluding the message that supplies the
 chosen URL prevents the POST for that destination.

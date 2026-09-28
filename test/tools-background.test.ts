@@ -13,6 +13,7 @@ async function loadTools() {
   const fake = createFakeMessenger();
   let onMessage: ((msg: unknown, sender: unknown) => unknown) | null = null;
   let onExternal: ((msg: unknown, sender: unknown) => unknown) | null = null;
+  let onMenuClick: ((info: any) => unknown) | null = null;
   const target = {
     ...fake.api,
     runtime: {
@@ -21,7 +22,7 @@ async function loadTools() {
       onMessageExternal: { addListener: vi.fn((fn: typeof onExternal) => (onExternal = fn)) },
       onMessage: { addListener: vi.fn((fn: typeof onMessage) => (onMessage = fn)) },
     },
-    menus: { create: vi.fn(), onClicked: { addListener: vi.fn() } },
+    menus: { create: vi.fn(), update: vi.fn(async () => {}), onClicked: { addListener: vi.fn((fn: typeof onMenuClick) => (onMenuClick = fn)) } },
     alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
     notifications: { create: vi.fn(async () => "n") },
     browserAction: { setBadgeText: vi.fn(async () => {}) },
@@ -39,7 +40,7 @@ async function loadTools() {
   const afterReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
   delete (globalThis as any).messenger;
   delete (globalThis as any).draftsafeSetExternalHandler;
-  return { fake, rec, onMessage: onMessage!, onExternal: onExternal!, beforeReady, beforeRequest, afterReady };
+  return { fake, rec, onMessage: onMessage!, onExternal: onExternal!, onMenuClick: onMenuClick!, target, beforeReady, beforeRequest, afterReady };
 }
 
 describe("draftsafe-tools background (real module)", () => {
@@ -73,6 +74,18 @@ describe("draftsafe-tools background (real module)", () => {
     ] as const) {
       expect(onExternal(msg, sender)).toBeInstanceOf(Promise);
     }
+  });
+
+  it("starts and revokes trust from Thunderbird's native menu listener only", async () => {
+    const { onMenuClick, onExternal, target } = await loadTools();
+    const bridge = { id: "draftsafe-bridge@draftsafe.dev" };
+    expect(await onExternal({ v: 1, type: "draftsafe.approval.trust" }, bridge)).toEqual({ ok: false, code: "bad_request" });
+    expect(target.notifications.create).not.toHaveBeenCalled();
+    await onMenuClick({ menuItemId: "ds-trust-agent" });
+    expect(target.notifications.create).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringContaining("vertrouwd") }));
+    expect(target.menus.update).toHaveBeenCalledWith("ds-trust-agent", expect.objectContaining({ title: expect.stringContaining("Stop") }));
+    await onMenuClick({ menuItemId: "ds-trust-agent" });
+    expect(target.menus.update).toHaveBeenCalledWith("ds-trust-agent", { title: "Trust agent for 1 hour" });
   });
 
   it("ignores messages from other extensions, content or foreign pages (fuzzed)", async () => {

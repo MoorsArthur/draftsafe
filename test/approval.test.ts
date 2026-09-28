@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 import { createStore } from "../addons/tools/src/lib/store.js";
-import { createApprovals, APPROVAL_TIMEOUT_MS, canonical, sha256Text } from "../addons/tools/src/approval/manager.js";
+import { createApprovals, APPROVAL_TIMEOUT_MS, TRUST_DURATION_MS, canonical, sha256Text } from "../addons/tools/src/approval/manager.js";
 import { validateCleanup, validateFolderChanges, validateUnsubscribe } from "../addons/shared/lib/approval-schema.js";
 import { planCleanup } from "../addons/tools/src/approval/cleanup.js";
 import { planFolderChanges } from "../addons/tools/src/approval/folder-changes.js";
@@ -14,15 +14,19 @@ import { createMailOps } from "../addons/shared/lib/mail-ops.js";
 const BRIDGE = { id: "draftsafe-bridge@draftsafe.dev" };
 const BASE = "moz-extension://tools/";
 const folder = (name: string, specialUse: string[] = []) => ({ id: `account1://${name}`, accountId: "account1", name: name.split("/").at(-1)!, path: `/${name}`, specialUse });
-function fixture() {
+function fixture(fetchImpl?: any) {
   const fake = createFakeMessenger({ withSaveMessage: true, extraFolders: [folder("Source"), folder("Target"), folder("Empty"), folder("Junk", ["junk"])] });
   const api: any = fake.api;
   api.runtime.id = "draftsafe-tools@draftsafe.dev";
   api.runtime.getURL = (p: string) => BASE + p;
   api.windows = { create: vi.fn(async () => ({ id: 55 })), update: vi.fn(async () => {}), remove: vi.fn(async () => {}) };
   api.permissions = { contains: vi.fn(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) };
+  api.notifications = { create: vi.fn(async () => "n") };
   let clock = 1000;
-  const manager = createApprovals({ api, store: createStore(api.storage.local), now: () => clock });
+  const store = createStore(api.storage.local);
+  const notices = vi.fn();
+  const makeManager = () => createApprovals({ api, store, now: () => clock, notify: notices, fetchImpl });
+  let manager = makeManager();
   const add = (subject = "Message", folderId = "account1://INBOX", extra = {}) => fake.addMessage({ folderId, subject, ...extra });
   const request = (kind: string, payload: any, sender: any = BRIDGE) => manager.handleExternal({ type: "draftsafe.approval.request", v: 1, kind, payload }, sender);
   const status = (r: any) => manager.handleExternal({ type: "draftsafe.approval.status", v: 1, requestId: r.requestId }, BRIDGE);
@@ -31,7 +35,7 @@ function fixture() {
   function page(r: any, decision: any, mutate = (_data: any) => {}, windowId = 55) {
     const listeners: any = {};
     const buttons: any = {};
-    for (const name of ["apply", "deny", "status"]) buttons[name] = { addEventListener: (_type: string, fn: any) => { listeners[name] = fn; } };
+    for (const name of ["apply", "apply-trust", "deny", "status"]) buttons[name] = { addEventListener: (_type: string, fn: any) => { listeners[name] = fn; } };
     class MouseEvent { isTrusted: boolean; currentTarget: any; constructor(name: string, trusted: boolean) { this.currentTarget = buttons[name]; this.isTrusted = trusted; } }
     const win: any = { location: { href: api.windows.create.mock.calls.at(-1)?.[0]?.url },
       messenger: { windows: { getCurrent: async () => ({ id: windowId }) }, permissions: api.permissions },
@@ -39,7 +43,8 @@ function fixture() {
     return { win, attach: () => manager.attachPage(win, (data: any) => { mutate(data); return () => decision; }),
       click: (name = "apply", trusted = true) => listeners[name](new MouseEvent(name, trusted)) };
   }
-  return { fake, api, manager, add, request, status, page, advance: (ms: number) => { clock += ms; } };
+  return { fake, api, get manager() { return manager; }, add, request, status, page, notices,
+    restart: () => { manager = makeManager(); }, advance: (ms: number) => { clock += ms; } };
 }
 afterEach(() => vi.useRealTimers());
 const cleanup = (ids: number[], extra = {}) => ({ batches: [{ messageIds: ids, action: "trash", reason: "untrusted reason", ...extra }] });
@@ -135,6 +140,123 @@ describe("approval boundary", () => {
   it("binds hashes to values independent of key order", async () => {
     expect(canonical({ b: 2, a: 1 })).toBe(canonical({ a: 1, b: 2 }));
     expect(await sha256Text(canonical({ ids: [1, 2] }))).not.toBe(await sha256Text(canonical({ ids: [1, 3] })));
+  });
+});
+
+describe("one-hour agent trust", () => {
+  it("starts only after the approval page's real click path, then logs trusted execution", async () => {
+    const f = fixture();
+    const first = f.add("First", "account1://Source");
+    const r = await f.request("cleanup", cleanup([first.id], { action: "move", folder: "INBOX" }));
+    const p = f.page(r, decision); await p.attach();
+    p.click("apply-trust", false);
+    expect(f.manager.trustRemaining()).toBe(0);
+    p.click("apply-trust");
+    await vi.waitFor(() => expect(f.manager.trustRemaining()).toBe(TRUST_DURATION_MS));
+    expect(f.notices).toHaveBeenCalledWith(expect.stringContaining("vertrouwd"), expect.any(String));
+    const second = f.add("Second", "account1://Source");
+    const trusted = await f.request("cleanup", cleanup([second.id], { action: "move", folder: "INBOX" }));
+    await vi.waitFor(async () => expect(await f.status(trusted)).toMatchObject({ outcome: { status: "approved", trusted: true, batches: [{ moved: 1 }] } }));
+    expect(f.api.windows.create).toHaveBeenCalledTimes(1);
+    expect((await f.manager.history()).find(entry => entry.requestId === trusted.requestId)).toMatchObject({ status: "approved_trusted", reasons: ["untrusted reason"], summary: [{ action: "move", count: 1 }] });
+  });
+
+  it("external messages cannot start trust; revoke and restart clear it", async () => {
+    const f = fixture();
+    for (const type of ["trust.start", "approval.trust", "draftsafe.approval.trust"]) {
+      expect(await f.manager.handleExternal({ type, v: 1, duration: TRUST_DURATION_MS }, BRIDGE)).toEqual({ ok: false, code: "bad_request" });
+    }
+    expect(f.manager.trustRemaining()).toBe(0);
+    f.manager.onTrustMenuClick();
+    expect(f.manager.trustRemaining()).toBe(TRUST_DURATION_MS);
+    f.manager.onTrustMenuClick();
+    expect(f.manager.trustRemaining()).toBe(0);
+    expect(f.notices).toHaveBeenCalledWith("Vertrouwen gestopt", expect.any(String));
+    const afterRevoke = await f.request("cleanup", cleanup([f.add().id]));
+    expect(afterRevoke.ok).toBe(true);
+    expect(f.api.windows.create).toHaveBeenCalledTimes(1);
+    f.manager.onWindowRemoved(55);
+    await vi.waitFor(async () => expect(await f.status(afterRevoke)).toMatchObject({ outcome: { status: "closed" } }));
+    f.manager.onTrustMenuClick();
+    f.restart();
+    expect(f.manager.trustRemaining()).toBe(0);
+    const afterRestart = await f.request("cleanup", cleanup([f.add().id]));
+    expect(afterRestart.ok).toBe(true);
+    expect(f.api.windows.create).toHaveBeenCalledTimes(2);
+    f.manager.onWindowRemoved(55);
+    expect(f.api.storage.local.set).not.toHaveBeenCalledWith(expect.objectContaining({ trustUntil: expect.anything() }));
+  });
+
+  it("revoking during planning prevents the queued trusted operation", async () => {
+    const f = fixture(); f.manager.onTrustMenuClick();
+    const m = f.add("Queued", "account1://Source");
+    const originalGet = f.api.messages.get.getMockImplementation();
+    let release!: () => void;
+    f.api.messages.get.mockImplementation((id: number) => id === m.id
+      ? new Promise(resolve => { release = async () => resolve(await originalGet(id)); })
+      : originalGet(id));
+    const r = await f.request("cleanup", cleanup([m.id]));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    f.manager.onTrustMenuClick();
+    release();
+    await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "denied" } }));
+    expect(f.api.messages.move).not.toHaveBeenCalled();
+  });
+
+  it("expires after 60 minutes and opens the next approval window", async () => {
+    vi.useFakeTimers();
+    const f = fixture(); f.manager.onTrustMenuClick();
+    f.advance(TRUST_DURATION_MS - 1);
+    await vi.advanceTimersByTimeAsync(TRUST_DURATION_MS - 1);
+    expect(f.manager.trustRemaining()).toBe(1);
+    f.advance(1); await vi.advanceTimersByTimeAsync(1);
+    expect(f.manager.trustRemaining()).toBe(0);
+    expect(f.notices).toHaveBeenCalledWith("Vertrouwen gestopt", expect.any(String));
+    const r = await f.request("cleanup", cleanup([f.add().id]));
+    expect(r.ok).toBe(true);
+    expect(f.api.windows.create).toHaveBeenCalledTimes(1);
+    f.manager.onWindowRemoved(55);
+  });
+
+  it("keeps per-request caps and the hourly rate limit while trusted", async () => {
+    const f = fixture(); f.manager.onTrustMenuClick();
+    expect(await f.request("cleanup", cleanup(Array.from({ length: 2001 }, (_, i) => i + 1)))).toMatchObject({ ok: false });
+    const m = f.add();
+    for (let i = 0; i < 30; i++) {
+      const r = await f.request("state", { route: "messages.markRead", params: { messageId: m.id, read: true } });
+      expect(r.ok).toBe(true);
+      await vi.waitFor(async () => expect(await f.status(r)).toMatchObject({ outcome: { status: "approved", trusted: true } }));
+    }
+    expect(await f.request("state", { route: "messages.markRead", params: { messageId: m.id, read: true } })).toMatchObject({ code: "rate_limited" });
+    expect(f.api.windows.create).not.toHaveBeenCalled();
+  });
+
+  it("only auto-runs eligible state changes; draft requests still need a window", async () => {
+    const f = fixture(); f.manager.onTrustMenuClick();
+    const m = f.add();
+    const tag = await f.request("state", { route: "messages.setTags", params: { messageId: m.id, add: ["Work"] } });
+    await vi.waitFor(async () => expect(await f.status(tag)).toMatchObject({ outcome: { status: "approved", trusted: true } }));
+    const draft = await f.request("state", { route: "drafts.create", params: { subject: "Draft", body: "Body" } });
+    expect(draft.ok).toBe(true);
+    expect(f.api.windows.create).toHaveBeenCalledTimes(1);
+    expect(f.api.compose.saveMessage).not.toHaveBeenCalled();
+    f.manager.onWindowRemoved(55);
+  });
+
+  it("auto-executes folder changes and eligible one-click unsubscribes", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: true }));
+    const f = fixture(fetchImpl); f.manager.onTrustMenuClick();
+    const folders = await f.request("folders", { changes: [{ action: "create", folder: "account1://", newName: "Trusted" }] });
+    await vi.waitFor(async () => expect(await f.status(folders)).toMatchObject({ outcome: { status: "approved", trusted: true } }));
+    expect(f.api.folders.create).toHaveBeenCalled();
+    const m = f.add("Newsletter", "account1://Source", { headers: {
+      "List-Unsubscribe": ["<https://news.example.test/unsubscribe>"],
+      "List-Unsubscribe-Post": ["List-Unsubscribe=One-Click"],
+    } });
+    const unsub = await f.request("unsubscribe", { items: [{ messageId: m.id, reason: "Stop newsletter" }] });
+    await vi.waitFor(async () => expect(await f.status(unsub)).toMatchObject({ outcome: { status: "approved", trusted: true, items: [{ result: "unsubscribed" }] } }));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(f.api.windows.create).not.toHaveBeenCalled();
   });
 });
 

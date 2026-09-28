@@ -20,10 +20,12 @@ export const MAX_REQUESTS_PER_HOUR = 30;
 export const OUTCOME_TTL_MS = 30 * 60 * 1000;
 export const LOG_KEY = "approvalLog";
 export const MAX_LOG_ENTRIES = 200;
+export const TRUST_DURATION_MS = 60 * 60 * 1000;
 
 const PLANNERS = { cleanup: planCleanup, unsubscribe: planUnsubscribe, folders: planFolderChanges, state: planState };
 const DECISION_KEY = { cleanup: "batches", unsubscribe: "senders", folders: "changes", state: "changes" };
 const REQUEST_ID_RE = /^[A-Za-z0-9_-]{24}$/;
+const TRUSTED_STATE_ROUTES = new Set(["messages.setTags", "messages.markRead"]);
 
 export class PageError extends Error {}
 
@@ -91,12 +93,45 @@ export function createApprovals({
   now = () => Date.now(),
   timers = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: t => clearTimeout(t) },
   fetchImpl,
+  notify = () => {},
+  onTrustChange = () => {},
 }) {
   const pageBase = api.runtime.getURL(APPROVAL_PAGE);
   let pending = null;
   const outcomes = new Map();
   let cooldownUntil = 0;
   const recent = [];
+  let trustUntil = 0;
+  let trustTimer = null;
+
+  function endTrust() {
+    if (!trustUntil) return;
+    trustUntil = 0;
+    if (trustTimer !== null) timers.clearTimeout(trustTimer);
+    trustTimer = null;
+    notify("Vertrouwen gestopt", "Verzoeken van de agent vragen opnieuw je toestemming.");
+    onTrustChange(0);
+  }
+
+  function trustRemaining() {
+    if (trustUntil && now() >= trustUntil) endTrust();
+    return Math.max(0, trustUntil - now());
+  }
+
+  function startTrust(clickedAt = now()) {
+    if (trustTimer !== null) timers.clearTimeout(trustTimer);
+    trustUntil = clickedAt + TRUST_DURATION_MS;
+    if (trustRemaining() === 0) return;
+    trustTimer = timers.setTimeout(endTrust, trustUntil - now());
+    notify("Agent vertrouwd voor 1 uur", "Toegestane verzoeken worden zonder goedkeuringsvenster uitgevoerd tot het vertrouwen stopt.");
+    onTrustChange(trustRemaining());
+  }
+
+  // Called only by Thunderbird's native menus.onClicked listener in background.js.
+  function onTrustMenuClick() {
+    if (trustRemaining()) endTrust();
+    else startTrust();
+  }
 
   function sweep() {
     const t = now();
@@ -121,7 +156,7 @@ export function createApprovals({
     return { [DECISION_KEY[slot.kind]]: slot.plan.readLength().map(() => ({ approved: false })) };
   }
 
-  async function finish(slot, status, result) {
+  async function finish(slot, status, result, trusted = false) {
     if (pending !== slot || slot.state === "done") return;
     slot.state = "done";
     timers.clearTimeout(slot.timer);
@@ -133,9 +168,10 @@ export function createApprovals({
         final = {};
       }
     }
-    const outcome = { kind: slot.kind, status, ...final };
+    const outcome = { kind: slot.kind, status: status === "approved_trusted" ? "approved" : status, ...final };
+    if (trusted) outcome.trusted = true;
     outcomes.set(slot.requestId, { at: now(), outcome });
-    if (status !== "approved") cooldownUntil = now() + COOLDOWN_MS;
+    if (!["approved", "approved_trusted"].includes(status)) cooldownUntil = now() + COOLDOWN_MS;
     if (status === "expired" && slot.windowId !== undefined) {
       api.windows.remove(slot.windowId).catch(() => {});
     }
@@ -160,13 +196,19 @@ export function createApprovals({
     if (pending) return fail("busy");
     // Reserve the single planning/window slot before mailbox reads.
     const count = itemCount(kind, input);
-    const slot = { requestId: token(18), kind, state: "planning", count,
+    const auto = trustRemaining() > 0 && (kind !== "state" || TRUSTED_STATE_ROUTES.has(input.route));
+    const slot = { requestId: token(18), kind, state: "planning", count, auto,
       progress: { done: 0, total: count, phase: kind === "unsubscribe" ? "headers" : "items" } };
     pending = slot;
     recent.push(t);
     slot.createdAt = t;
     slot.deadline = t + APPROVAL_TIMEOUT_MS;
     slot.timer = timers.setTimeout(() => { finish(slot, "expired").catch(() => {}); }, APPROVAL_TIMEOUT_MS);
+    if (auto) {
+      log({ requestId: slot.requestId, at: t, kind, status: "planning" }).catch(() => {});
+      void prepare(slot, input);
+      return { ok: true, requestId: slot.requestId };
+    }
     try {
       const win = await api.windows.create({
         type: "popup", url: `${pageBase}?r=${slot.requestId}&n=${slot.count}`,
@@ -204,7 +246,33 @@ export function createApprovals({
       await log({ requestId: slot.requestId, at: slot.createdAt, kind, status: "pending",
         summary: summarize(kind, plan.view), reasons: reasonsOf(kind, plan.view) });
       if (pending !== slot || slot.state !== "planning") return { ok: true, requestId: slot.requestId };
-      if (pending === slot && slot.state === "planning") slot.state = "open";
+      if (slot.auto) {
+        if (!trustRemaining()) {
+          await finish(slot, "denied");
+          return;
+        }
+        slot.state = "executing";
+        timers.clearTimeout(slot.timer);
+        try {
+          const currentHash = await sha256Text(canonical({ requestId: slot.requestId, nonce: slot.nonce, kind, binding: plan.binding, view: plan.view }));
+          if (currentHash !== slot.hash) throw new Error("plan changed");
+          const key = DECISION_KEY[kind];
+          const decision = { [key]: plan.readLength().map(item => ({ approved: kind !== "unsubscribe" || item.defaultChecked === true })) };
+          plan.readDecision(decision);
+          if (!trustRemaining()) {
+            slot.state = "open";
+            await finish(slot, "denied");
+            return;
+          }
+          const result = await plan.execute(decision);
+          slot.state = "open";
+          await finish(slot, "approved_trusted", result, true);
+        } catch (e) {
+          console.error("draftsafe: trusted request failed", e);
+          slot.state = "open";
+          await finish(slot, "failed", { code: "failed" }, true);
+        }
+      } else slot.state = "open";
     } catch (e) {
       if (pending !== slot || slot.state !== "planning") return;
       await finish(slot, "refused", { code: e instanceof FolderRuleError || e instanceof ApprovalInputError ? e.code : "failed" });
@@ -332,29 +400,32 @@ export function createApprovals({
     const apply = page.document.getElementById("apply");
     const deny = page.document.getElementById("deny");
     let clicked = false;
-    function click(allow, button, event) {
+    const trust = page.document.getElementById("apply-trust");
+    function click(allow, button, event, trustAfter = false) {
       if (clicked || !event.isTrusted || !(event instanceof page.MouseEvent) || event.currentTarget !== button || page.location.href !== sender.url) return;
       const slot = slotFor(sender, requestId);
       if (!slot || now() >= slot.deadline) return;
       const decision = allow ? readDecision() : denyAll(slot);
       try { slot.plan.readDecision(decision); } catch { return; }
       clicked = true;
-      apply.disabled = deny.disabled = true;
+      apply.disabled = deny.disabled = trust.disabled = true;
       // Request permission while the trusted user gesture is still on the stack.
       const origins = allow && slot.plan.originsFor ? slot.plan.originsFor(decision) : [];
       let permission = Promise.resolve();
       if (origins.length) {
         try { permission = page.messenger.permissions.request({ origins }); } catch { /* fails closed */ }
       }
+      const clickedAt = now();
       decide({ requestId, nonce: data.nonce, hash: data.hash, decision }, sender, permission).then(
-        () => page.close(),
+        outcome => { if (trustAfter && outcome.status === "approved") startTrust(clickedAt); page.close(); },
         () => { page.document.getElementById("status").textContent = "Actie gestopt. Bekijk de geschiedenis."; }
       );
     }
     apply.addEventListener("click", event => click(true, apply, event));
+    trust.addEventListener("click", event => click(true, trust, event, true));
     deny.addEventListener("click", event => click(false, deny, event));
     return true;
   }
 
-  return { handleExternal, attachPage, onWindowRemoved, history };
+  return { handleExternal, attachPage, onWindowRemoved, history, onTrustMenuClick, trustRemaining };
 }

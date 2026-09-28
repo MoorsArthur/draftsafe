@@ -5,7 +5,7 @@
 // receipt (it is the authority; the bridge copy only fails fast).
 //
 // A request can only ever DESCRIBE work. There is no field that approves,
-// schedules or skips the approval window, and unknown keys are rejected, so
+// schedules or starts trust, and unknown keys are rejected, so
 // e.g. an agent-supplied unsubscribe URL or an "approved: true" flag fails
 // validation instead of being ignored.
 

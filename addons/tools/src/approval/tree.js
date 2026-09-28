@@ -3,7 +3,7 @@
 // approved action touches is looked up and checked here immediately before
 // the action runs, never taken from a cache or matched by name alone.
 //
-// Protected (never renamed, merged, removed, used as a "move" destination):
+// Protected (never renamed, merged or removed; only Inbox can be a move destination):
 //   - special-use folders (Inbox, Drafts, Sent, Trash, Junk, Archives,
 //     Templates, Outbox) and every ANCESTOR of one (e.g. "[Gmail]");
 //   - everything inside Trash, Junk, Outbox, Drafts, Templates or Sent;

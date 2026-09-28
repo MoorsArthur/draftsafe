@@ -95,12 +95,15 @@ try {
   const count = Number(new URL(location.href).searchParams.get("n"));
   if (Number.isInteger(count) && count > 0) document.getElementById("status").textContent = `Voorbereiden: 0 van ${count} onderdelen…`;
   document.getElementById("apply").disabled = true;
+  document.getElementById("apply-trust").disabled = true;
   document.getElementById("deny").disabled = true;
   const background = await messenger.runtime.getBackgroundPage();
   await background.attachApprovalPage(window, renderApproval);
   document.getElementById("apply").disabled = false;
+  document.getElementById("apply-trust").disabled = false;
   document.getElementById("deny").disabled = false;
 } catch {
   document.getElementById("status").textContent = "Dit verzoek is niet meer beschikbaar.";
   document.getElementById("apply").disabled = true;
+  document.getElementById("apply-trust").disabled = true;
 }

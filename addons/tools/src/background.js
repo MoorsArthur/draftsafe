@@ -21,7 +21,7 @@ function notify(title, message) {
 }
 
 const store = createStore(api.storage.local);
-const approvals = createApprovals({ api, store });
+const approvals = createApprovals({ api, store, notify, onTrustChange: updateTrustMenu });
 // Available only to pages belonging to this add-on; never a runtime decision API.
 globalThis.attachApprovalPage = (page, render) => approvals.attachPage(page, render);
 globalThis.draftsafeSetExternalHandler((msg, sender) => approvals.handleExternal(msg, sender));
@@ -43,6 +43,7 @@ async function updateBadge() {
 }
 
 async function tick() {
+  updateTrustMenu(approvals.trustRemaining());
   for (const job of [() => snooze.wakeDue(), () => sendLater.processDue(), updateBadge]) {
     try {
       await job();
@@ -63,9 +64,18 @@ api.alarms.onAlarm.addListener(alarm => {
 const MENU = {
   snooze: "ds-snooze",
   followup: "ds-followup",
+  trust: "ds-trust-agent",
 };
 
+function updateTrustMenu(remaining) {
+  const title = remaining > 0
+    ? `Stop trusting agent (${Math.ceil(remaining / 60000)} min left)`
+    : "Trust agent for 1 hour";
+  api.menus.update(MENU.trust, { title }).catch(() => {});
+}
+
 function createMenus() {
+  api.menus.create({ id: MENU.trust, title: "Trust agent for 1 hour", contexts: ["browser_action", "message_list"] });
   api.menus.create({ id: MENU.snooze, title: "Snooze", contexts: ["message_list"] });
   for (const [id, title] of [
     ["later-today", "Later today"],
@@ -93,6 +103,10 @@ function openPicker(mode, ids) {
 }
 
 api.menus.onClicked.addListener(async info => {
+  if (info.menuItemId === MENU.trust) {
+    approvals.onTrustMenuClick();
+    return;
+  }
   const [group, choice] = String(info.menuItemId).split(":");
   if (!choice || !info.selectedMessages) {
     return;
