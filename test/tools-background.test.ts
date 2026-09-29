@@ -33,6 +33,7 @@ async function loadTools() {
   const rec = recordApi(target);
   (globalThis as any).messenger = rec.api;
   vi.resetModules();
+  await import("../addons/shared/lib/ids-global.js");
   await import("../addons/tools/src/external-receiver.js");
   const beforeReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
   const beforeRequest = await onExternal!({ v: 1, type: "draftsafe.approval.request", kind: "cleanup", payload: {} }, { id: "draftsafe-bridge@draftsafe.dev" });

@@ -1,4 +1,5 @@
 node_modules/
 dist/
 *.log
+downloaded_files/
 .DS_Store

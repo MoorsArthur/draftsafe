@@ -4,8 +4,10 @@
 // window; draftsafe-tools accepts it from this exact sender id only, and only
 // a click in that window can make anything happen.
 
-export const BRIDGE_ID = "draftsafe-bridge@draftsafe.dev";
-export const TOOLS_ID = "draftsafe-tools@draftsafe.dev";
+import "./ids-global.js";
+
+export const BRIDGE_ID = globalThis.draftsafeIds.bridge;
+export const TOOLS_ID = globalThis.draftsafeIds.tools;
 
 // Message types of that one channel (bridge -> tools).
 export const APPROVAL_REQUEST = "draftsafe.approval.request";

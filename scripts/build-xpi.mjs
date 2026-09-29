@@ -14,10 +14,12 @@ import { deflateRawSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BRIDGE_ID, TOOLS_ID } from "../addons/shared/lib/ids.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const addonsDir = join(root, "addons");
 const ADDONS = ["bridge", "tools"];
+const ADDON_IDS = { bridge: BRIDGE_ID, tools: TOOLS_ID };
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -150,6 +152,9 @@ export function buildXpis() {
   rmSync(join(root, "dist", "draftsafe-mcp.xpi"), { force: true }); // pre-0.2 single add-on
   for (const name of ADDONS) {
     const manifest = JSON.parse(readFileSync(join(addonsDir, name, "manifest.json"), "utf8"));
+    if (manifest.browser_specific_settings?.gecko?.id !== ADDON_IDS[name]) {
+      throw new Error(`${name}: manifest ID does not match the shared ID`);
+    }
     if (manifest.version !== pkg.version) {
       console.error(`${name}: manifest version ${manifest.version} != package.json version ${pkg.version}`);
       process.exit(1);

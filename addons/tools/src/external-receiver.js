@@ -4,7 +4,7 @@
 // No message on this channel can approve a request. The listener must return a
 // Promise: Thunderbird drops plain return values from onMessageExternal.
 (() => {
-  const BRIDGE_ID = "draftsafe-bridge@draftsafe.dev";
+  const BRIDGE_ID = globalThis.draftsafeIds.bridge;
   const PROTOCOL = 1;
   const HEALTH = "draftsafe.approval.health";
   let handler = null;

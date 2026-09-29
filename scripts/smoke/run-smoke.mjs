@@ -22,6 +22,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { zip } from "../build-xpi.mjs";
 import { buildSmokeTools } from "./build-tools.mjs";
+import { BRIDGE_ID, TOOLS_ID } from "../../addons/shared/lib/ids.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const KEEP = process.argv.includes("--keep");
@@ -30,7 +31,7 @@ const home = os.homedir();
 const snapCommon = join(home, "snap", "thunderbird", "common");
 const CONN = join(snapCommon, "draftsafe-mcp", "connection.json");
 const REAL_PROFILE = join(home, "snap", "thunderbird", "current", ".config", "thunderbird");
-const IDS = { bridge: "draftsafe-bridge@draftsafe.dev", tools: "draftsafe-tools@draftsafe.dev", seed: "draftsafe-smoke-seed@test.invalid" };
+const IDS = { bridge: BRIDGE_ID, tools: TOOLS_ID, seed: "draftsafe-smoke-seed@test.invalid" };
 
 const results = [];
 function check(name, ok, detail = "") {
