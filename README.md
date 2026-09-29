@@ -1,12 +1,14 @@
 # Draftsafe for Thunderbird
 
-**Draftsafe** (`draftsafe-mcp`) lets an AI assistant read and classify local
-Thunderbird mail, then request changes you approve with a real click in Thunderbird.
-It never sends mail on an agent's behalf. Even tags, read flags and saved drafts
-require your approval.
+**Draftsafe** (`draftsafe-mcp`) lets an MCP client read and classify local
+Thunderbird mail, then request mailbox changes. The agent-facing bridge cannot
+send or forward mail. Every requested change needs a real Thunderbird click,
+or a one-hour trust window you start with a real click. Draft requests save to
+Drafts and never send. Every MCP result wraps mailbox content as untrusted data.
 
 > **The bridge holds no send, move or delete permission.** It relays requests to
-> Draftsafe Tools, which displays one approval window. Review batches, sender groups,
+> Draftsafe Tools, which displays one approval window unless an eligible request
+> arrives during a user-started trust window. Review batches, sender groups,
 > subjects, destinations and folder-tree previews; allow or deny each batch and
 > exclude individual messages. Closing the window or waiting ten minutes denies it.
 
@@ -25,12 +27,15 @@ endorsed by Mozilla; per Mozilla's trademark guidance the name does not start wi
 
 ## How it works
 
-```
-Claude Code ──stdio──> draftsafe-mcp (Node) ──HTTP, 127.0.0.1:<random port>, Bearer token──> Draftsafe Bridge add-on
-                             │                                                                       │
-                     reads connection.json <── written by the bridge (dir 0700, file 0600) ──────────┘
-
-Bridge -> runtime.sendMessage -> Draftsafe Tools -> approval window -> your click -> execution
+```mermaid
+flowchart LR
+  C[MCP client] -- stdio --> M[Draftsafe MCP server]
+  M -- loopback HTTP and bearer token --> B[Bridge add-on]
+  B -- read requests --> T[Thunderbird mailbox]
+  B -- change request --> A[Tools add-on]
+  A -- review window or active trust --> U[User click]
+  U -- authorized action --> T
+  B -- private connection file --> M
 ```
 
 1. **Draftsafe Bridge** (`addons/bridge/`, MailExtension, Manifest V2):
@@ -55,7 +60,7 @@ Bridge -> runtime.sendMessage -> Draftsafe Tools -> approval window -> your clic
   exercised.
 - Node.js **20+** for the MCP server.
 
-## Build and test
+## Development
 
 ```sh
 npm ci
@@ -64,6 +69,11 @@ npm test           # unit, property and loopback tests (no Thunderbird needed)
 npm run typecheck
 npm run smoke      # real Thunderbird in a throwaway profile under Xvfb (see below)
 ```
+
+The MCP server is in `mcp/src`, the two add-ons are in `addons`, and the
+shared validation and ID constants are in `addons/shared`. Tests use fake
+Thunderbird APIs and check the built XPI permission boundary. See
+[CONTRIBUTING.md](CONTRIBUTING.md) before changing the bridge or approval flow.
 
 ## Install
 
@@ -81,10 +91,25 @@ Same steps with `dist/draftsafe-tools.xpi`. Its sending permission is for the ex
 user-only Send later feature. The bridge cannot invoke it. Unsubscribe approval may
 request an optional HTTPS host permission for the displayed destination.
 
-### 3. The MCP server (Claude Code)
+### 3. The MCP server
+
+Point your MCP client at the built server with stdio. For Claude Code:
 
 ```sh
-claude mcp add -s user draftsafe -- node /absolute/path/to/thunderbird-mcp/dist/index.js
+claude mcp add -s user draftsafe -- node /absolute/path/to/draftsafe/dist/index.js
+```
+
+For clients that accept a JSON stdio server entry:
+
+```json
+{
+  "mcpServers": {
+    "draftsafe": {
+      "command": "node",
+      "args": ["/absolute/path/to/draftsafe/dist/index.js"]
+    }
+  }
+}
 ```
 
 Configure your MCP client to allow a **730-second tool timeout** for approval requests.
@@ -116,6 +141,9 @@ The file holds `{version, port, token}`. It gets a fresh random token and port o
 Thunderbird start and is removed on shutdown, but only if it still holds this instance's
 token.
 
+Paths shown with `~` are relative to your home directory. The server derives them
+from the current user's home directory; no developer-specific path is required.
+
 ## Tools
 
 | Tool | What it does | Mutates |
@@ -136,6 +164,11 @@ token.
 
 Every tool description tells the model that drafts are never sent and that mail content
 is untrusted.
+
+During a one-hour trust window, cleanup, unsubscribe, folder, tag and read-flag
+requests can run after the usual validation and execution checks. You start or
+stop that window in Thunderbird. Draft and follow-up requests still need their
+own approval window. Restarting or reloading the add-on clears trust.
 
 ## Approval requests
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2 (2026-09-28)
+
+- Added an optional one-hour trust window started by a real Thunderbird menu or
+  approval-page click. Eligible requests still validate, reserve one slot and
+  recheck their targets before execution. Drafts and follow-ups still require
+  an individual review window.
+- Added account Inbox restoration for approved moves, plus sender-based
+  unsubscribe requests with bounded mailbox searches.
+- Kept send and forward unavailable to the MCP and bridge. Send later remains
+  a user-only Tools feature.
+- Improved startup readiness for the bridge-to-Tools request channel and
+  documented the security and installation boundaries.
+
 ## 0.3.0 (2026-09-28)
 
 - Added relay-only cleanup/trash, unsubscribe and folder-change requests, plus

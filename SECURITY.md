@@ -5,6 +5,14 @@ Every agent-requested mailbox change normally requires a trusted click in a
 Thunderbird approval window. A Thunderbird click can start a one-hour trust
 session for cleanup, unsubscribe, folder, tag and read-flag requests. Reading needs no click.
 
+## Reporting a vulnerability
+
+Report security issues privately through this repository's GitHub security
+advisory feature if it is available. Otherwise contact the repository owner
+through GitHub. Include the affected version, a reproduction and the boundary
+you believe is crossed. Do not put mailbox content, connection files or tokens
+in a report. Please avoid opening a public issue before a fix is available.
+
 ## Permission boundary
 
 | Add-on | Permissions and authority |
