@@ -1,4 +1,4 @@
-// draftsafe-tools' background page, loaded for real against a recording fake:
+// Draftsafe's user-feature background page, loaded against a recording fake:
 //   - it registers no external-messaging or bridge surface;
 //   - only its own popups (same extension id, own UI URL) reach its handlers;
 //   - send later can only be scheduled from the compose-window popup.
@@ -12,14 +12,13 @@ const BASE = `moz-extension://uuid/`;
 async function loadTools() {
   const fake = createFakeMessenger();
   let onMessage: ((msg: unknown, sender: unknown) => unknown) | null = null;
-  let onExternal: ((msg: unknown, sender: unknown) => unknown) | null = null;
   let onMenuClick: ((info: any) => unknown) | null = null;
   const target = {
     ...fake.api,
     runtime: {
       id: ID,
       getURL: (p: string) => `${BASE}${p}`,
-      onMessageExternal: { addListener: vi.fn((fn: typeof onExternal) => (onExternal = fn)) },
+      onMessageExternal: { addListener: vi.fn() },
       onMessage: { addListener: vi.fn((fn: typeof onMessage) => (onMessage = fn)) },
     },
     menus: { create: vi.fn(), update: vi.fn(async () => {}), onClicked: { addListener: vi.fn((fn: typeof onMenuClick) => (onMenuClick = fn)) } },
@@ -33,55 +32,37 @@ async function loadTools() {
   const rec = recordApi(target);
   (globalThis as any).messenger = rec.api;
   vi.resetModules();
-  await import("../addons/shared/lib/ids-global.js");
-  await import("../addons/tools/src/external-receiver.js");
-  const beforeReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
-  const beforeRequest = await onExternal!({ v: 1, type: "draftsafe.approval.request", kind: "cleanup", payload: {} }, { id: "draftsafe-bridge@draftsafe.dev" });
   const mod = await import("../addons/tools/src/background.js");
   await mod.ready;
-  const afterReady = await onExternal!({ v: 1, type: "draftsafe.approval.health" }, { id: "draftsafe-bridge@draftsafe.dev" });
   delete (globalThis as any).messenger;
-  delete (globalThis as any).draftsafeSetExternalHandler;
-  return { fake, rec, onMessage: onMessage!, onExternal: onExternal!, onMenuClick: onMenuClick!, target, beforeReady, beforeRequest, afterReady };
+  return { fake, rec, onMessage: onMessage!, onMenuClick: onMenuClick!, target, approvals: mod.approvals };
 }
 
 describe("draftsafe-tools background (real module)", () => {
-  it("registers the request receiver but never touches a bridge", async () => {
-    const { rec, beforeReady, beforeRequest, afterReady } = await loadTools();
-    expect(beforeReady).toEqual({ ok: true, ready: false });
-    expect(beforeRequest).toEqual({ ok: false, code: "not_ready" });
-    expect(afterReady).toEqual({ ok: true, ready: true });
+  it("exposes local request/status methods but no external receiver", async () => {
+    const { rec, target, approvals } = await loadTools();
+    expect(typeof approvals.request).toBe("function");
+    expect(typeof approvals.status).toBe("function");
+    expect(target.runtime.onMessageExternal.addListener).not.toHaveBeenCalled();
     for (const path of rec.touched) {
       expect(path).not.toMatch(/draftsafeBridge|connectNative|runtime\.connect|runtime\.sendMessage/);
     }
   });
 
-  it("rejects a request while starting, then accepts one after the background wakes", async () => {
-    const { onExternal } = await loadTools();
-    const sender = { id: "draftsafe-bridge@draftsafe.dev" };
-    expect(await onExternal({ v: 1, type: "draftsafe.approval.request", kind: "bad", payload: {} }, sender))
+  it("rejects invalid local approval requests", async () => {
+    const { approvals } = await loadTools();
+    expect(await approvals.request("bad", {}))
       .toEqual({ ok: false, code: "bad_request" });
-    expect(await onExternal({ v: 1, type: "draftsafe.approval.health" }, { id: "evil@x" }))
-      .toEqual({ ok: false, code: "forbidden_sender" });
   });
 
-  it("answers every external message with a Promise (Thunderbird drops plain values)", async () => {
-    const { onExternal } = await loadTools();
-    const bridge = { id: "draftsafe-bridge@draftsafe.dev" };
-    for (const [msg, sender] of [
-      [{ v: 1, type: "draftsafe.approval.health" }, bridge],
-      [{ v: 1, type: "draftsafe.approval.request", kind: "bad", payload: {} }, bridge],
-      [{ v: 1, type: "draftsafe.approval.health" }, { id: "evil@x" }],
-      [null, bridge],
-    ] as const) {
-      expect(onExternal(msg, sender)).toBeInstanceOf(Promise);
-    }
+  it("does not accept approval decisions through runtime messages", async () => {
+    const { onMessage } = await loadTools();
+    expect(onMessage({ type: "approval.decide", approved: true }, { id: ID, url: `${BASE}tools/src/ui/approve.html` })).toBeUndefined();
   });
 
   it("starts and revokes trust from Thunderbird's native menu listener only", async () => {
-    const { onMenuClick, onExternal, target } = await loadTools();
-    const bridge = { id: "draftsafe-bridge@draftsafe.dev" };
-    expect(await onExternal({ v: 1, type: "draftsafe.approval.trust" }, bridge)).toEqual({ ok: false, code: "bad_request" });
+    const { onMenuClick, approvals, target } = await loadTools();
+    expect(approvals.trustRemaining()).toBe(0);
     expect(target.notifications.create).not.toHaveBeenCalled();
     await onMenuClick({ menuItemId: "ds-trust-agent" });
     expect(target.permissions.request).toHaveBeenCalledWith({ origins: ["https://*/*"] });

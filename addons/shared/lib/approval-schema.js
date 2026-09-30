@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Shape of the approval requests an agent can make (via draftsafe-bridge) and
-// of the outcomes it gets back. Pure functions, packed into both add-ons: the
+// of the outcomes it gets back. Pure functions packed into the combined add-on: the
 // bridge validates before relaying, draftsafe-tools validates again on
 // receipt (it is the authority; the bridge copy only fails fast).
 //

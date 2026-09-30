@@ -51,6 +51,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     { key: "$label2", tag: "Work", color: "#ff9900", ordinal: "" },
   ];
   const composeTabs = new Map<number, Record<string, unknown>>();
+  const tabRemovedListeners = new Set<(tabId: number) => void>();
   const storage: Record<string, unknown> = {};
 
   const folderById = (id: string) => folders.find(f => f.id === id);
@@ -305,7 +306,14 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
       }),
       sendMessage: forbidden.composeSendMessage,
     },
-    tabs: { remove: vi.fn(async (tab: number) => void composeTabs.delete(tab)) },
+    tabs: {
+      remove: vi.fn(async (tab: number) => {
+        composeTabs.delete(tab);
+        for (const listener of tabRemovedListeners) listener(tab);
+      }),
+      onRemoved: { addListener: vi.fn((listener: (tabId: number) => void) => tabRemovedListeners.add(listener)) },
+    },
+    notifications: { create: vi.fn(async (_id: string, _details: Record<string, unknown>) => _id) },
     messengerUtilities: undefined as undefined | { convertToPlainText: (html: string) => Promise<string> },
   };
 

@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
-  "name": "Draftsafe Tools",
-  "short_name": "Draftsafe Tools",
-  "version": "0.4.2",
-  "description": "User-approved mailbox requests with optional one-hour trust started by a Thunderbird click, plus snooze, send later and follow-ups.",
+  "name": "Draftsafe",
+  "short_name": "Draftsafe",
+  "version": "0.5.0",
+  "description": "Read Thunderbird mail through MCP and review mailbox changes. Includes Snooze, Send later and Follow-ups.",
   "author": "Arthur Moors",
   "browser_specific_settings": {
     "gecko": {
@@ -16,7 +16,7 @@
     "64": "tools/icons/draftsafe.svg"
   },
   "background": {
-    "page": "tools/background.html",
+    "page": "app/background.html",
     "persistent": true
   },
   "permissions": [
@@ -27,15 +27,28 @@
     "messagesUpdate",
     "messagesTags",
     "messagesTagsList",
+    "messages.save",
     "compose",
     "compose.save",
     "compose.send",
     "alarms",
     "menus",
     "notifications",
-    "storage",
-    "messages.save"
+    "storage"
   ],
+  "optional_permissions": [
+    "https://*/*"
+  ],
+  "experiment_apis": {
+    "draftsafeBridge": {
+      "schema": "bridge/api/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["draftsafeBridge"]],
+        "script": "bridge/api/implementation.js"
+      }
+    }
+  },
   "message_display_action": {
     "default_title": "Snooze",
     "default_icon": "tools/icons/snooze.svg",
@@ -50,8 +63,5 @@
     "default_title": "Follow-ups",
     "default_icon": "tools/icons/followup.svg",
     "default_popup": "tools/src/ui/followups-popup.html"
-  },
-  "optional_permissions": [
-    "https://*/*"
-  ]
+  }
 }

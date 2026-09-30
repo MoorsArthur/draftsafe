@@ -55,6 +55,8 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   "compose.beginReply": [],
   "compose.saveMessage": ["compose.save"],
   "tabs.remove": [],
+  "tabs.onRemoved.addListener": [],
+  "notifications.create": ["notifications"],
   "messengerUtilities.convertToPlainText": [],
   "draftsafeBridge.start": ["experiment"],
   "draftsafeBridge.publishConnection": ["experiment"],

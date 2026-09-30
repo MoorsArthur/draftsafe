@@ -113,9 +113,21 @@ export function createRequestHandler({ getSecrets, routes, now = () => Date.now(
     if (inFlight >= MAX_IN_FLIGHT) {
       return fail(503, "busy", "too many requests in progress; try again shortly");
     }
+    const approval = name.startsWith("requests.") || ["messages.setTags", "messages.markRead", "followups.set", "drafts.create"].includes(name);
     inFlight++;
+    // The HTTP response has a hard read deadline even if a Thunderbird API
+    // call itself stalls. Keep the permit until that API work really settles.
+    const work = Promise.resolve()
+      .then(() => routes[name](params, createDeadline(approval ? 11 * 60 * 1000 : HANDLER_BUDGET_MS, now)))
+      .finally(() => { inFlight--; });
+    let timer;
     try {
-      const result = await routes[name](params, createDeadline(name.startsWith("requests.") || ["messages.setTags", "messages.markRead", "followups.set", "drafts.create"].includes(name) ? 11 * 60 * 1000 : HANDLER_BUDGET_MS, now));
+      const result = approval ? await work : await Promise.race([
+        work,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new BridgeError("timeout", "the read operation ran out of time", 504)), HANDLER_BUDGET_MS);
+        }),
+      ]);
       return respond({ ok: true, result });
     } catch (e) {
       if (e instanceof BridgeError) {
@@ -124,7 +136,7 @@ export function createRequestHandler({ getSecrets, routes, now = () => Date.now(
       console.error(`draftsafe: route ${name} failed`, e);
       return fail(500, "internal", "Thunderbird reported an error; see the Thunderbird error console for details");
     } finally {
-      inFlight--;
+      if (timer) clearTimeout(timer);
     }
   };
 }

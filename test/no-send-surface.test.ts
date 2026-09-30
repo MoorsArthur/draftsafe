@@ -1,11 +1,11 @@
-// The core promise: nothing reachable through the bridge can send, forward,
-// move or delete mail. Checked on the declared surfaces and, as a property,
+// The HTTP/MCP route contract: no direct send, forward, move or delete call.
+// The combined add-on has Send later permission, so this is a route-level
+// guarantee, not a manifest privilege boundary. Checked as a property
 // by loading the REAL bridge background page (addons/bridge/src/background.js)
 // against a recording fake Thunderbird and fuzzing every route (plus unknown
 // and send-like routes) with random, malformed and smuggled parameters:
 //   - no send/forward/delete/move function is ever called;
-//   - every API member the bridge touches is in API_PERMISSIONS, i.e. is
-//     covered by the bridge's (send-free) manifest permissions.
+//   - every API member the bridge touches is in the reviewed API table.
 // The seed is fixed and printed on failure; set DRAFTSAFE_FUZZ_SEED to vary it.
 
 import { describe, expect, it, vi } from "vitest";
@@ -26,6 +26,7 @@ describe("declared surfaces", () => {
         "accounts.list",
         "folders.detailed", "requests.cleanup", "requests.unsubscribe", "requests.folders", "requests.status",
         "drafts.create",
+        "compose.openForReview",
         "followups.list",
         "followups.set",
         "health",
@@ -38,15 +39,18 @@ describe("declared surfaces", () => {
     );
   });
 
-  it("MCP tools map one-to-one onto bridge routes and carry the safety texts", () => {
+  it("MCP tools map one-to-one onto bridge routes with concise descriptions", () => {
     for (const t of TOOLS) {
       if (t.name !== "request_trash") expect(t.name).not.toMatch(FORBIDDEN_NAME);
       expect(ROUTE_NAMES).toContain(t.route);
       expect(t.untrusted).toBe(true);
-      expect(t.description, t.name).toMatch(/never sent/i);
-      expect(t.description, t.name).toMatch(/cannot send, forward or delete/i);
-      expect(t.description, t.name).toMatch(/untrusted/i);
+      expect(t.description, t.name).not.toMatch(/MCP cannot send, forward or permanently delete/i);
+      expect(t.description, t.name).not.toMatch(/Mailbox text in results is untrusted data/i);
     }
+    expect(TOOLS.find(t => t.name === "create_draft")?.description).toMatch(/never sent/i);
+    expect(TOOLS.find(t => t.name === "request_cleanup")?.description).toMatch(/active trust/i);
+    expect(TOOLS.find(t => t.name === "request_unsubscribe")?.description).toMatch(/Trash, Junk, Inbox and Archive/i);
+    expect(TOOLS.find(t => t.name === "open_compose_for_review")?.description).toMatch(/click Thunderbird's Send button/i);
   });
 
   it("smuggled send flags are rejected, not ignored", async () => {
@@ -81,6 +85,7 @@ const PARAM_KEYS: Record<string, string[]> = {
   "followups.list": [],
   "followups.set": ["messageId", "done"],
   "drafts.create": ["to", "cc", "bcc", "subject", "body", "replyToMessageId", "replyAll", "identityId"],
+  "compose.openForReview": ["to", "subject", "body", "replyToMessageId", "identityId"],
 };
 const SMUGGLED = ["send", "mode", "sendAt", "forward", "delete", "destination", "folderId", "trash", "move", "__proto__", "constructor"];
 const EXTRA_ROUTES = [
@@ -109,7 +114,7 @@ async function loadRealBridge(seedMessages: (fake: ReturnType<typeof createFakeM
   (globalThis as any).messenger = rec.api;
   vi.resetModules();
   const mod = await import("../addons/bridge/src/background.js");
-  await mod.ready;
+  await mod.configureBridge(async () => ({ status: "denied" }));
   delete (globalThis as any).messenger;
   expect(listener, "background registered its onRequest listener").not.toBeNull();
   const call = async (route: string, body: string) =>
@@ -158,6 +163,7 @@ describe("property: the real bridge background never sends, moves or deletes", (
       ["followups.set", { messageId: m2, done: true }],
       ["drafts.create", { to: ["bob@example.test"], subject: "Hi", body: "Draft body" }],
       ["drafts.create", { replyToMessageId: m, body: "Reply body", replyAll: true }],
+      ["compose.openForReview", { to: ["bob@example.test"], subject: "Review", body: "Agent text" }],
     ];
     for (const [route, params] of calls) {
       const r = await call(route, JSON.stringify(params));
@@ -165,9 +171,9 @@ describe("property: the real bridge background never sends, moves or deletes", (
     }
     for (const [name, spy] of Object.entries(forbiddenSpiesOf(fake))) expect(spy, name).not.toHaveBeenCalled();
     for (const path of rec.touched) expect(Object.keys(API_PERMISSIONS), `touched ${path}`).toContain(path);
-    expect(rec.called).toContain("runtime.sendMessage");
+    expect(rec.called).not.toContain("runtime.sendMessage");
     expect(rec.called).not.toContain("messages.saveMessage");
-    expect(rec.called).not.toContain("compose.beginReply");
+    expect(rec.called).toContain("compose.beginNew");
     expect(fake.api.messages.update).not.toHaveBeenCalled();
   });
 
@@ -204,7 +210,7 @@ describe("property: the real bridge background never sends, moves or deletes", (
       const body = rand() < 0.03 ? pick(["{not json", "[1]", '"s"', ""]) : JSON.stringify(params);
       const r = await call(route, body);
       statuses.set(r.status, (statuses.get(r.status) ?? 0) + 1);
-      expect([200, 400, 404, 500], `seed ${seed} #${i} ${route} ${body} -> ${r.body}`).toContain(r.status);
+      expect([200, 400, 404, 409, 429, 500], `seed ${seed} #${i} ${route} ${body} -> ${r.body}`).toContain(r.status);
       for (const [name, spy] of Object.entries(forbiddenSpiesOf(fake))) {
         expect(spy, `seed ${seed} #${i} ${route} ${body}: ${name}`).not.toHaveBeenCalled();
       }

@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Real smoke test: a throwaway Thunderbird profile under Xvfb with both
-// add-ons (plus a test-only seeder) installed, driven through the real MCP
+// Real smoke test: a throwaway Thunderbird profile under Xvfb with the
+// combined add-on (plus a test-only seeder) installed, driven through the real MCP
 // server. Never touches the user's profile or display.
 //
 //   npm run build && node scripts/smoke/run-smoke.mjs [--keep]
 //
 // Requires: xvfb-run, xte (xautomation; quits Thunderbird with Ctrl+Q so
 // shutdown handlers run), Thunderbird (snap at /snap/bin/thunderbird by default,
-// override with THUNDERBIRD=/path). For the snap, the profile must live under
-// ~/snap/thunderbird/common, which is also where the bridge publishes its
-// connection file.
+// override with THUNDERBIRD=/path/to/a/standalone/binary). The snap profile
+// lives under ~/snap/thunderbird/common; a standalone build uses a temporary
+// state directory that is removed with the headless session.
 
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import { dirname, join } from "node:path";
@@ -21,17 +21,17 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { zip } from "../build-xpi.mjs";
-import { buildSmokeTools } from "./build-tools.mjs";
-import { BRIDGE_ID, TOOLS_ID } from "../../addons/shared/lib/ids.js";
+import { buildSmokeAddon } from "./build-tools.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const KEEP = process.argv.includes("--keep");
 const TB = process.env.THUNDERBIRD || "/snap/bin/thunderbird";
 const home = os.homedir();
 const snapCommon = join(home, "snap", "thunderbird", "common");
-const CONN = join(snapCommon, "draftsafe-mcp", "connection.json");
+const smokeBase = TB === "/snap/bin/thunderbird" ? snapCommon : join(os.tmpdir(), "draftsafe-smoke");
+const CONN = join(smokeBase, "draftsafe-smoke-mcp", "connection.json");
 const REAL_PROFILE = join(home, "snap", "thunderbird", "current", ".config", "thunderbird");
-const IDS = { bridge: BRIDGE_ID, tools: TOOLS_ID, seed: "draftsafe-smoke-seed@test.invalid" };
+const IDS = { addon: "draftsafe-tools@draftsafe.dev", seed: "draftsafe-smoke-seed@test.invalid" };
 
 const results = [];
 function check(name, ok, detail = "") {
@@ -51,18 +51,25 @@ async function waitFor(what, fn, timeoutMs = 90_000) {
 
 // ------------------------------------------------------------- preflight --
 
+// An interactive desktop session can leak a snap Thunderbird window onto the
+// user's real display despite Xvfb. Run this only from a separate headless
+// login/session with no inherited graphical display.
+if (process.env.DISPLAY || process.env.WAYLAND_DISPLAY) {
+  console.error("Refusing GUI smoke from an interactive desktop session. Use a separate headless session.");
+  process.exit(2);
+}
 if (existsSync(CONN)) {
   console.error(`${CONN} already exists (a real Draftsafe bridge may be running); refusing to run.`);
   process.exit(2);
 }
-for (const f of ["draftsafe-bridge.xpi", "draftsafe-tools.xpi", "index.js"]) {
+for (const f of ["draftsafe.xpi", "index.js"]) {
   if (!existsSync(join(root, "dist", f))) {
     console.error(`dist/${f} missing: run npm run build first`);
     process.exit(2);
   }
 }
-mkdirSync(snapCommon, { recursive: true });
-const profile = mkdtempSync(join(snapCommon, "tmp-draftsafe-"));
+mkdirSync(smokeBase, { recursive: true });
+const profile = mkdtempSync(join(smokeBase, "tmp-draftsafe-"));
 if (profile.startsWith(REAL_PROFILE)) throw new Error("refusing to use the real profile");
 const logFile = join(root, "dist", "smoke-thunderbird.log");
 console.log(`profile: ${profile}`);
@@ -141,8 +148,7 @@ writeFileSync(
     .join("\n") + "\n"
 );
 mkdirSync(join(profile, "extensions"));
-copyFileSync(join(root, "dist", "draftsafe-bridge.xpi"), join(profile, "extensions", `${IDS.bridge}.xpi`));
-buildSmokeTools(join(profile, "extensions", `${IDS.tools}.xpi`));
+buildSmokeAddon(join(profile, "extensions", `${IDS.addon}.xpi`));
 const seedDir = join(root, "scripts", "smoke", "seed");
 writeFileSync(
   join(profile, "extensions", `${IDS.seed}.xpi`),
@@ -152,8 +158,8 @@ writeFileSync(
 // ----------------------------------------------------------- Xvfb + TB ---
 
 // xvfb-run -a picks a free display and an auth file; `snap run` migrates that
-// file into the snap's private area. The user's DISPLAY/Wayland session is
-// scrubbed from the environment so nothing can reach the real desktop.
+// file into the snap's private area. Display variables are scrubbed as a
+// second safeguard after the headless-session preflight.
 // The snap's desktop-launch switches GTK to Wayland whenever
 // $XDG_RUNTIME_DIR/../wayland-0 exists, even with WAYLAND_DISPLAY unset, which
 // would put windows on the user's real desktop. DISABLE_WAYLAND plus a
@@ -167,6 +173,10 @@ const env = {
   MOZ_CRASHREPORTER_DISABLE: "1",
   XDG_SESSION_TYPE: "x11",
 };
+if (TB !== "/snap/bin/thunderbird") {
+  env.XDG_STATE_HOME = smokeBase;
+  delete env.SNAP_USER_COMMON;
+}
 for (const k of ["DISPLAY", "XAUTHORITY", "DESKTOP_STARTUP_ID", "XDG_ACTIVATION_TOKEN"]) delete env[k];
 const log = [];
 const tb = spawn("xvfb-run", ["-a", "-s", "-screen 0 1280x1024x24", TB, "-profile", profile, "-no-remote"], { env, stdio: ["ignore", "pipe", "pipe"] });
@@ -193,13 +203,17 @@ function ourThunderbirdPids() {
     .map(m => Number(m[1]));
 }
 
-function clickOnOurDisplay(point) {
+function ourDisplayEnv() {
   const xvfbLine = execFileSync("pgrep", ["-a", "-P", String(tb.pid), "Xvfb"], { encoding: "utf8" }).trim();
   const display = /\s(:\d+)\s/.exec(xvfbLine)?.[1];
   const auth = /-auth\s+(\S+)/.exec(xvfbLine)?.[1];
   if (!display || display === process.env.DISPLAY || !auth) throw new Error("unsafe X display");
+  return { PATH: process.env.PATH, DISPLAY: display, XAUTHORITY: auth };
+}
+
+function clickOnOurDisplay(point) {
   execFileSync("xte", [`mousemove ${point.x} ${point.y}`, "mouseclick 1"], {
-    env: { PATH: process.env.PATH, DISPLAY: display, XAUTHORITY: auth },
+    env: ourDisplayEnv(),
   });
 }
 
@@ -278,7 +292,7 @@ try {
   };
 
   const { tools } = await mcp.listTools();
-  check("MCP lists fourteen read and approval tools", tools.length === 14 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
+  check("MCP lists sixteen read, approval and compose tools", tools.length === 16 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
 
   const accounts = await tool("list_accounts");
   const pop = accounts.accounts.find(a => a.identities.length);
@@ -336,7 +350,8 @@ try {
 
   // Approval boundaries with real trusted X11 pointer clicks on our Xvfb only.
   const detailed = await tool("list_folders_detailed", { account_id: pop.id });
-  check("detailed folders include counts and dates", detailed.folders.some(f => f.specialUse.includes("inbox") && f.count === 3 && f.oldest && f.newest));
+  check("detailed folders use counts without scanning dates", detailed.folders.some(f =>
+    f.specialUse.includes("inbox") && f.count === 3 && f.oldest === null && f.newest === null));
   const request = { batches: [{ message_ids: [lunch.id], action: "trash", reason: "Smoke approval boundary" }] };
   const denied = await tool("request_cleanup", request, "deny", async () => {
     const stillInbox = await tool("get_message", { message_id: lunch.id });
@@ -361,8 +376,13 @@ try {
   const forbiddenMove = await tool("request_cleanup", { batches: [{ message_ids: [mergedMessages.messages[0].id], action: "move", folder: "Trash", reason: "Must refuse special destination" }] });
   check("move to special-use folder refused without approval", forbiddenMove.status === "refused" && forbiddenMove.code === "forbidden_folder");
   const inboxFolder = detailed.folders.find(f => f.specialUse.includes("inbox"));
-  const forbiddenRename = await tool("request_folder_changes", { changes: [{ action: "rename", folder: inboxFolder.id, new_name: "Renamed" }] });
-  check("special-use folder rename refused", forbiddenRename.status === "refused" && forbiddenRename.code === "forbidden_folder");
+  const renameRequest = { changes: [{ action: "rename", folder: inboxFolder.id, new_name: "Renamed" }] };
+  const duringCooldown = await tool("request_folder_changes", renameRequest);
+  check("refused request starts the denial cooldown", duringCooldown.status === "refused" && duringCooldown.code === "cooldown");
+  await sleep(21_000);
+  const forbiddenRename = await tool("request_folder_changes", renameRequest);
+  check("special-use folder rename refused", forbiddenRename.status === "refused" && forbiddenRename.code === "forbidden_folder",
+    JSON.stringify(forbiddenRename));
 
   // ---------------------------------------------------- forbidden attempts --
   const forbiddenTool = await mcp.callTool({ name: "send_message", arguments: { message_id: lunch.id } }).catch(e => ({ isError: true, content: [{ text: String(e) }] }));
@@ -391,8 +411,59 @@ try {
     const r = await post(route, body, headers, method).catch(e => ({ status: `network error: ${e.cause?.code || e.cause?.message || e.message}` }));
     check(`HTTP ${method} /v1/${route}${Object.keys(headers).length ? " " + Object.keys(headers).join(",") : ""}${body.send || body.mode ? " +send flag" : ""} is refused`, r.status === want, `got ${r.status}`);
   }
-  await sleep(2000); // give any (unexpected) send a moment to reach the trap
-  check("no connection ever reached the SMTP trap", smtpConnections === 0, `${smtpConnections} connections`);
+  const prepared = await tool("open_compose_for_review", {
+    to: ["recipient@example.test"], subject: "Agent-prepared smoke message", body: "Review this message in Thunderbird."
+  });
+  check("agent-prepared email opens for review and reports sent:false", prepared.status === "awaiting_user_send" && prepared.sent === false);
+  await sleep(1000);
+  check("opening the composer made no SMTP connection", smtpConnections === 0, `${smtpConnections} connections`);
+  const secondOpen = await mcp.callTool({ name: "open_compose_for_review", arguments: {
+    to: ["recipient@example.test"], subject: "Duplicate", body: "Should be blocked."
+  } });
+  check("another agent composer is blocked while the first remains open", secondOpen.isError === true && /compose_busy/.test(secondOpen.content[0].text), secondOpen.content[0].text.slice(0, 180));
+  // Only a real pointer click on Thunderbird's native Send button may reach
+  // SMTP. This throwaway account points to the local rejecting trap.
+  clickOnOurDisplay({ x: 42, y: 46 });
+  const attemptedSend = await waitFor("the local SMTP trap", () => smtpConnections > 0, 15_000).catch(() => false);
+  check("native Send click alone attempts SMTP to the local trap", attemptedSend && smtpConnections === 1, `${smtpConnections} connections`);
+  // Dismiss Thunderbird's expected SMTP failure, then close the unsent
+  // composer like a user. An agent cannot trigger this click through MCP.
+  clickOnOurDisplay({ x: 712, y: 438 });
+  await sleep(1000);
+  clickOnOurDisplay({ x: 400, y: 250 });
+  execFileSync("xte", ["keydown Control_L", "key w", "keyup Control_L"], { env: ourDisplayEnv() });
+  await sleep(1000);
+  const reopened = await mcp.callTool({ name: "open_compose_for_review", arguments: {
+    to: ["recipient@example.test"], subject: "Second reviewed message", body: "Second window after closing the first."
+  } });
+  check("closing the first composer releases the one-window guard", reopened.isError !== true && unwrap(reopened).status === "awaiting_user_send", reopened.content[0].text.slice(0, 180));
+  check("agent calls never attempt a second SMTP connection", smtpConnections === 1, `${smtpConnections} connections`);
+  if (reopened.isError !== true) {
+    clickOnOurDisplay({ x: 400, y: 250 });
+    execFileSync("xte", ["keydown Control_L", "key w", "keyup Control_L"], { env: ourDisplayEnv() });
+    await sleep(700);
+  }
+  const replyAccount = (await tool("list_accounts")).accounts.find(a => a.identities.length);
+  const replyMessage = await waitFor("seeded reply source", async () => {
+    const found = await tool("search_messages", { folder: "inbox", account_id: replyAccount.id });
+    return found.messages.find(m => m.subject === "Quarterly report");
+  }, 30_000);
+  const reviewedReply = await tool("open_compose_for_review", {
+    reply_to_message_id: replyMessage.id, body: "Thanks, I reviewed the report."
+  });
+  const replyWindows = execFileSync("xwininfo", ["-root", "-tree"], { encoding: "utf8", env: ourDisplayEnv() });
+  check("threaded reply opens in Thunderbird for review", reviewedReply.status === "awaiting_user_send" && reviewedReply.sent === false &&
+    /Write: Re: Quarterly report - Thunderbird/.test(replyWindows));
+  check("opening the reply made no SMTP connection", smtpConnections === 1, `${smtpConnections} connections`);
+  clickOnOurDisplay({ x: 400, y: 250 });
+  execFileSync("xte", ["keydown Control_L", "key w", "keyup Control_L"], { env: ourDisplayEnv() });
+  await sleep(700);
+  // Replies ask whether to save an unsent draft when closed. Discard this
+  // synthetic smoke message so shutdown is clean.
+  clickOnOurDisplay({ x: 222, y: 433 });
+  await sleep(700);
+  const afterReplyClose = execFileSync("xwininfo", ["-root", "-tree"], { encoding: "utf8", env: ourDisplayEnv() });
+  check("discarding the reply closes its composer", !/Write: Re: Quarterly report - Thunderbird/.test(afterReplyClose));
 } catch (e) {
   check("smoke run completed", false, String(e && e.stack || e));
 } finally {
@@ -406,10 +477,25 @@ try {
       const disp = /\s(:\d+)\s/.exec(xvfbLine)?.[1];
       const auth = /-auth\s+(\S+)/.exec(xvfbLine)?.[1];
       if (disp && disp !== process.env.DISPLAY) {
-        execFileSync("xte", ["mousemove 300 300", "keydown Control_L", "key q", "keyup Control_L"], {
+        // Approval popups occupy the center of the Xvfb screen. Click the
+        // main-window corner so Ctrl+Q reaches Thunderbird's mail window.
+        execFileSync("xte", ["mousemove 100 100", "mouseclick 1", "keydown Control_L", "key q", "keyup Control_L"], {
           env: { PATH: process.env.PATH, DISPLAY: disp, ...(auth ? { XAUTHORITY: auth } : {}) },
         });
-        await waitFor("thunderbird to quit", () => tbExit !== null, 30_000).catch(() => {});
+        await waitFor("thunderbird to quit", () => tbExit !== null, 3_000).catch(() => {});
+        if (tbExit === null) {
+          // Thunderbird can ask for confirmation before quitting.
+          execFileSync("xte", ["key Return"], {
+            env: { PATH: process.env.PATH, DISPLAY: disp, ...(auth ? { XAUTHORITY: auth } : {}) },
+          });
+          await waitFor("thunderbird to quit", () => tbExit !== null, 27_000).catch(() => {});
+        }
+        if (tbExit === null) {
+          console.log(execFileSync("xwininfo", ["-root", "-tree"], {
+            encoding: "utf8",
+            env: { PATH: process.env.PATH, DISPLAY: disp, ...(auth ? { XAUTHORITY: auth } : {}) },
+          }).slice(0, 3000));
+        }
       }
     } catch (e) {
       console.log(`graceful quit failed: ${e.message}`);
@@ -422,7 +508,7 @@ try {
     });
   }
   await sleep(1000);
-  check("connection file removed on shutdown (own record only)", !existsSync(CONN));
+  check("connection file removed on shutdown (own record only)", !existsSync(CONN), `Thunderbird exit=${tbExit}`);
   trap.close();
   writeFileSync(logFile, log.join(""));
 }
@@ -448,14 +534,11 @@ check("on disk: no Sent mail and an empty Outbox", !read("Sent").includes("Subje
 
 const ext = JSON.parse(readFileSync(join(profile, "extensions.json"), "utf8"));
 const byId = Object.fromEntries(ext.addons.map(a => [a.id, a]));
-const bridge = byId[IDS.bridge];
-const toolsAddon = byId[IDS.tools];
-const bridgePerms = bridge?.userPermissions?.permissions ?? [];
-check("Thunderbird installed and enabled the bridge", bridge?.active === true, `active=${bridge?.active} appDisabled=${bridge?.appDisabled}`);
-check("Thunderbird installed and enabled the tools add-on", toolsAddon?.active === true, `active=${toolsAddon?.active}`);
-check("bridge permissions as granted by Thunderbird contain no send/move/delete/compose",
-  bridgePerms.length > 0 && !bridgePerms.some(p => ["compose", "compose.send", "messages.send", "messagesDelete", "messagesMove", "accountsFolders"].includes(p)),
-  bridgePerms.join(","));
+const addon = byId[IDS.addon];
+const addonPerms = addon?.userPermissions?.permissions ?? [];
+check("Thunderbird installed and enabled the single add-on", addon?.active === true, `active=${addon?.active} appDisabled=${addon?.appDisabled}`);
+check("combined permissions include Send later but exclude permanent delete",
+  addonPerms.includes("compose.send") && !addonPerms.includes("messagesDelete"), addonPerms.join(","));
 const tbLog = log.join("");
 const addonErrors = tbLog.split("\n").filter(l => /draftsafe/i.test(l) && /error|failed|exception/i.test(l) && !/draftsafe-smoke/.test(l));
 check("no Draftsafe errors in Thunderbird's console output", addonErrors.length === 0, addonErrors.slice(0, 3).join(" / "));
@@ -463,7 +546,7 @@ console.log("\n--- console lines mentioning draftsafe ---\n" + tbLog.split("\n")
 
 const failed = results.filter(r => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed. Log: ${logFile}`);
-writeFileSync(join(root, "dist", "smoke-report.json"), JSON.stringify({ when: new Date().toISOString(), bridgePermissions: bridgePerms, results }, null, 2));
+writeFileSync(join(root, "dist", "smoke-report.json"), JSON.stringify({ when: new Date().toISOString(), addonPermissions: addonPerms, results }, null, 2));
 if (!KEEP) {
   rmSync(profile, { recursive: true, force: true });
   console.log(`removed ${profile}`);

@@ -165,7 +165,7 @@ export async function readConnection(paths: string[] = candidatePaths()): Promis
   }
   if (!found.length) {
     throw new ConnectionError(
-      "Thunderbird bridge not found. Is Thunderbird running with the Draftsafe Bridge add-on enabled? Looked in: " +
+      "No Draftsafe connection file. If Thunderbird is closed, start it; if open, enable the Draftsafe add-on. Looked in: " +
         paths.join(", ")
     );
   }

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 // The complete bridge surface. Anything not in this table returns 404.
 //
-// Deliberately absent, and must stay absent: send, send later, forward,
-// reply-and-send, delete, move (including snooze), archive, filters,
-// contacts, account settings. The add-on's manifest does not even hold the
-// permissions those would need; test/bridge-permissions.test.ts and
-// test/no-send-surface.test.ts enforce both.
+// Deliberately absent: send, send later, forward, reply-and-send, permanent
+// delete, direct move/snooze/archive, filters, contacts and account settings.
+// The combined manifest has some of these permissions for approved changes
+// and user-only Send later, so route allowlisting is the MCP boundary.
 
 import {
   BridgeError,
@@ -33,6 +32,7 @@ export const ROUTE_NAMES = Object.freeze([
   "followups.list",
   "followups.set",
   "drafts.create",
+  "compose.openForReview",
 ]);
 
 const MAX_BODY_CHARS = 200_000;
@@ -54,7 +54,7 @@ export function createRoutes({ ops, version }) {
       return ops.listFoldersDetailed(optString(p, "accountId", 100), ctx);
     },
 
-    "messages.search": async p => {
+    "messages.search": async (p, ctx = NO_DEADLINE) => {
       onlyKeys(p, [
         "query", "folder", "accountId", "includeSubFolders", "from", "to", "subject",
         "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor",
@@ -74,7 +74,7 @@ export function createRoutes({ ops, version }) {
         tag: optString(p, "tag", 100),
         limit: optInt(p, "limit", 1, 100, 25),
         cursor: optString(p, "cursor", 64),
-      });
+      }, ctx);
     },
 
     "messages.get": async p => {
@@ -138,6 +138,29 @@ export function createRoutes({ ops, version }) {
         throw new BridgeError("invalid_params", "a new draft needs at least a recipient or a subject");
       }
       return ops.createDraft(draft);
+    },
+
+    "compose.openForReview": async p => {
+      onlyKeys(p, ["to", "subject", "body", "replyToMessageId", "identityId"]);
+      const body = reqString(p, "body", 100_000);
+      if (body.includes("\0")) throw new BridgeError("invalid_params", "body contains an invalid character", 400);
+      const replyToMessageId = p.replyToMessageId === undefined ? undefined : messageId(p.replyToMessageId, "replyToMessageId");
+      if (replyToMessageId !== undefined) {
+        if (p.to !== undefined || p.subject !== undefined || p.identityId !== undefined)
+          throw new BridgeError("invalid_params", "reply input cannot override recipients, subject or identity", 400);
+        return ops.openComposeForReview({ replyToMessageId, body });
+      }
+      if (!Array.isArray(p.to) || p.to.length < 1 || p.to.length > 20 ||
+          !p.to.every(address => typeof address === "string" && address.length <= 320 &&
+            /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/.test(address))) {
+        throw new BridgeError("invalid_params", "to must contain 1 to 20 plain email addresses", 400);
+      }
+      const subject = reqString(p, "subject", 300);
+      if (/[\x00-\x1f\x7f]/.test(subject)) throw new BridgeError("invalid_params", "subject must be a single line", 400);
+      const identityId = optString(p, "identityId", 100);
+      if (identityId !== undefined && (!identityId || /[\x00-\x1f\x7f]/.test(identityId)))
+        throw new BridgeError("invalid_params", "invalid sender identity", 400);
+      return ops.openComposeForReview({ to: p.to, subject, body, identityId });
     },
   };
 

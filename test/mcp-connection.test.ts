@@ -66,7 +66,7 @@ describe("connection file discovery", () => {
 
     chmodSync(b, 0o644);
     await expect(readConnection([b])).rejects.toThrow(/refusing/);
-    await expect(readConnection([path.join(d, "nope.json")])).rejects.toThrow(/Is Thunderbird running/);
+    await expect(readConnection([path.join(d, "nope.json")])).rejects.toThrow(/If Thunderbird is closed, start it; if open, enable the Draftsafe add-on/);
   });
 
   it("refuses a symlinked connection file (checked and read through one descriptor)", async () => {

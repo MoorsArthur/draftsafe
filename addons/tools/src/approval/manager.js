@@ -4,7 +4,6 @@
 // Neither runtime message channel exposes approval or its nonce.
 
 import { APPROVAL_KINDS, ApprovalInputError, VALIDATORS } from "../../../shared/lib/approval-schema.js";
-import { BRIDGE_ID, APPROVAL_PROTOCOL, APPROVAL_REQUEST, APPROVAL_STATUS } from "../../../shared/lib/ids.js";
 import { planState } from "./state.js";
 import { validateStateRequest } from "../../../shared/lib/state-request.js";
 import { planCleanup } from "./cleanup.js";
@@ -238,8 +237,6 @@ export function createApprovals({
       });
       slot.windowId = win && win.id;
       if (slot.windowId === undefined) throw new Error("approval window did not open");
-      api.windows.update(slot.windowId, { drawAttention: true }).catch(() => {})
-        .then(() => api.windows.update(slot.windowId, { focused: true })).catch(() => {});
       if (pending !== slot || slot.state !== "planning") {
         api.windows.remove(slot.windowId).catch(() => {});
         return { ok: true, requestId: slot.requestId };
@@ -309,19 +306,6 @@ export function createApprovals({
     if (pending && pending.state !== "done" && pending.requestId === requestId) return { ok: true, status: pending.state === "planning" ? "planning" : "pending", progress: pending.progress };
     const o = outcomes.get(requestId);
     return o ? { ok: true, status: "done", outcome: o.outcome } : fail("unknown_request");
-  }
-
-  /**
-   * The ONLY entry point for other extensions. The background page calls it
-   * solely for sender.id === draftsafe-bridge. It can open a window and
-   * report an outcome; it cannot approve.
-   */
-  async function handleExternal(msg, sender) {
-    if (sender?.id !== BRIDGE_ID) return fail("forbidden_sender");
-    if (!msg || typeof msg !== "object" || msg.v !== APPROVAL_PROTOCOL) return fail("bad_request");
-    if (msg.type === APPROVAL_REQUEST && Object.keys(msg).every(k => ["type", "v", "kind", "payload"].includes(k))) return request(msg.kind, msg.payload);
-    if (msg.type === APPROVAL_STATUS && Object.keys(msg).every(k => ["type", "v", "requestId"].includes(k))) return status(msg.requestId);
-    return fail("bad_request");
   }
 
   /** The open request, if `sender` is its approval page in its own window. */
@@ -453,5 +437,5 @@ export function createApprovals({
     return true;
   }
 
-  return { handleExternal, attachPage, onWindowRemoved, history, onTrustMenuClick, trustRemaining };
+  return { request, status, attachPage, onWindowRemoved, history, onTrustMenuClick, trustRemaining };
 }

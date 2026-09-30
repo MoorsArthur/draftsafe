@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-// Mail operations exposed through the bridge: read operations plus three
-// permitted mutations: tags (incl. the Follow up tag), read/unread, and saving
-// a NEW draft. This add-on holds no permission to send, move or delete mail
-// (see manifest.json and test/bridge-permissions.test.ts), and nothing here
-// calls such an API.
+// Mail operations exposed through the bridge: reads, approval-gated state
+// requests, saved drafts and agent-prepared native compose windows. The
+// combined manifest has Send later permission, but this module never sends.
 
 import { FOLLOWUP_TAG_KEY } from "./constants.js";
+import { createComposeReview } from "./compose-review.js";
 import { createFollowupTag } from "./followup-tag.js";
 import { abortList, queryAll, summarizeFolder, summarizeHeader } from "./mail.js";
 import { normalizeSubject, parseMessageIds, quoteForReply, stripHtml, truncate } from "./text.js";
@@ -33,6 +32,7 @@ function randomId() {
 export function createMailOps({ api, now = () => Date.now() }) {
   const cursors = new Map();
   const followupTag = createFollowupTag({ api });
+  const composeReview = createComposeReview({ api, now });
 
   function sweepCursors() {
     const t = now();
@@ -156,6 +156,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
   }
 
   return {
+    openComposeForReview: composeReview.open,
     async health() {
       return { status: "ok" };
     },
@@ -188,25 +189,12 @@ export function createMailOps({ api, now = () => Date.now() }) {
       async function visit(folder) {
         if (folders.length >= MAX_FOLDERS) { truncated = true; return; }
         ctx.check();
-        let oldest = null, newest = null;
         let info = {};
         try { info = await api.folders.getFolderInfo(folder.id); } catch { /* root */ }
-        // Iterate pages without retaining the mailbox; the route's time budget bounds work.
-        let page = await api.messages.query({ folderId: [folder.id], messagesPerPage: 100 });
-        try {
-          for (;;) {
-            ctx.check();
-            for (const m of page.messages || []) {
-              const d = new Date(m.date).toISOString();
-              if (!oldest || d < oldest) oldest = d;
-              if (!newest || d > newest) newest = d;
-            }
-            if (!page.id) break;
-            page = await api.messages.continueList(page.id);
-          }
-        } finally { await abortList(api, page.id); }
+        // Folder counts are metadata. Enumerating every message for date extrema
+        // made this route scale with the entire mailbox and regularly timed out.
         folders.push({ ...summarizeFolder(folder), count: info.totalMessageCount ?? null,
-          unread: info.unreadMessageCount ?? null, oldest, newest,
+          unread: info.unreadMessageCount ?? null, oldest: null, newest: null,
           subfolders: (folder.subFolders || []).map(f => f.id) });
         for (const sub of folder.subFolders || []) await visit(sub);
       }
@@ -214,7 +202,8 @@ export function createMailOps({ api, now = () => Date.now() }) {
       return { folders, truncated };
     },
 
-    async search(p) {
+    async search(p, ctx = NO_DEADLINE) {
+      ctx.check();
       sweepCursors();
       let state;
       if (p.cursor) {
@@ -236,15 +225,19 @@ export function createMailOps({ api, now = () => Date.now() }) {
         if (p.tag) q.tags = { mode: "all", tags: { [p.tag]: true } };
         if (p.accountId) q.accountId = p.accountId;
         const folderIds = await resolveFolderIds(p.folder, p.accountId);
+        ctx.check();
         if (folderIds) {
           q.folderId = folderIds;
           if (p.includeSubFolders) q.includeSubFolders = true;
         }
         const first = await api.messages.query(q);
+        ctx.check();
         state = { buffer: [...(first.messages || [])], listId: first.id || null };
       }
       while (state.buffer.length < p.limit + 1 && state.listId) {
+        ctx.check();
         const page = await api.messages.continueList(state.listId);
+        ctx.check();
         state.buffer.push(...(page.messages || []));
         state.listId = page.id || null;
       }
@@ -254,7 +247,9 @@ export function createMailOps({ api, now = () => Date.now() }) {
         nextCursor = randomId();
         cursors.set(nextCursor, { ...state, createdAt: now() });
       }
-      return { messages: await Promise.all(page.map(classify)), nextCursor };
+      const messages = await Promise.all(page.map(classify));
+      ctx.check();
+      return { messages, nextCursor };
     },
 
     async getMessage(id, maxBodyChars) {
@@ -395,9 +390,8 @@ export function createMailOps({ api, now = () => Date.now() }) {
     },
 
     /**
-     * Saves a NEW draft to the Drafts folder. Never sends: this add-on has no
-     * send permission, and compose.saveMessage only accepts the "draft" and
-     * "template" modes.
+     * Saves a NEW draft to the Drafts folder. This route uses save APIs only;
+     * Send later elsewhere in the combined add-on has send permission.
      *
      * New drafts use messages.saveMessage (Thunderbird 153+, no window).
      * Reply drafts use compose.beginReply so Thunderbird sets In-Reply-To and

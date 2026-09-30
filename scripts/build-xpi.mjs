@@ -1,25 +1,19 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Packs the two add-ons into dist/draftsafe-bridge.xpi and dist/draftsafe-tools.xpi
-// (plain ZIPs). No dependencies, deterministic output (sorted entries, fixed
-// timestamps).
+// Packs the single Draftsafe add-on into dist/draftsafe.xpi (plain ZIP).
+// No dependencies, deterministic output (sorted entries, fixed timestamps).
 //
-// Layout: each XPI mirrors addons/: addons/<name>/manifest.json becomes the
-// XPI's manifest.json, the rest of addons/<name>/ goes under <name>/, and only
-// the files of addons/shared/ that the add-on actually imports go under
-// shared/. So the bridge XPI contains no tools code and vice versa
-// (test/bridge-permissions.test.ts scans the built files).
+// Layout: addons/app/manifest.json becomes the XPI's manifest.json. The
+// background import closure plus HTML, icon and Experiment assets are packed
+// under their source directories. The obsolete external receiver is omitted.
 
 import { deflateRawSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BRIDGE_ID, TOOLS_ID } from "../addons/shared/lib/ids.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const addonsDir = join(root, "addons");
-const ADDONS = ["bridge", "tools"];
-const ADDON_IDS = { bridge: BRIDGE_ID, tools: TOOLS_ID };
 
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -58,14 +52,24 @@ export function addonEntries(name) {
     const rel = relative(own, file).split(sep).join("/");
     add(file, rel === "manifest.json" ? "manifest.json" : `${name}/${rel}`);
   }
-  // Shared modules: import closure from all own JS files.
-  const queue = walk(own).filter(f => f.endsWith(".js"));
+  if (name === "app") {
+    for (const dir of ["bridge/api", "tools/src/ui", "tools/icons"]) {
+      for (const file of walk(join(addonsDir, dir))) {
+        const rel = relative(addonsDir, file).split(sep).join("/");
+        add(file, rel);
+      }
+    }
+  }
+  // Imported modules are packed recursively; HTML-referenced scripts above
+  // seed the queue as well as the app background module.
+  const queue = [...entries.values()].filter(f => f.endsWith(".js"));
   const seen = new Set(queue);
   while (queue.length) {
     for (const target of importsOf(queue.shift())) {
       const rel = relative(addonsDir, target).split(sep).join("/");
-      if (!rel.startsWith(`${name}/`) && !rel.startsWith("shared/")) {
-        throw new Error(`${name}: import of ${rel} crosses into another add-on`);
+      const allowed = name === "app" ? ["app/", "bridge/", "tools/", "shared/"] : [`${name}/`, "shared/"];
+      if (!allowed.some(prefix => rel.startsWith(prefix))) {
+        throw new Error(`${name}: import of ${rel} leaves the add-on source tree`);
       }
       if (!existsSync(target)) {
         throw new Error(`${name}: missing import ${rel}`);
@@ -73,7 +77,7 @@ export function addonEntries(name) {
       if (!seen.has(target)) {
         seen.add(target);
         queue.push(target);
-        if (rel.startsWith("shared/")) add(target, rel);
+        add(target, rel);
       }
     }
   }
@@ -149,21 +153,17 @@ export function zip(files) {
 
 export function buildXpis() {
   mkdirSync(join(root, "dist"), { recursive: true });
-  rmSync(join(root, "dist", "draftsafe-mcp.xpi"), { force: true }); // pre-0.2 single add-on
-  for (const name of ADDONS) {
-    const manifest = JSON.parse(readFileSync(join(addonsDir, name, "manifest.json"), "utf8"));
-    if (manifest.browser_specific_settings?.gecko?.id !== ADDON_IDS[name]) {
-      throw new Error(`${name}: manifest ID does not match the shared ID`);
-    }
-    if (manifest.version !== pkg.version) {
-      console.error(`${name}: manifest version ${manifest.version} != package.json version ${pkg.version}`);
-      process.exit(1);
-    }
-    const files = addonEntries(name);
-    const out = join(root, "dist", `draftsafe-${name}.xpi`);
-    writeFileSync(out, zip(files));
-    console.log(`wrote ${relative(root, out)} (${files.length} files)`);
+  const manifest = JSON.parse(readFileSync(join(addonsDir, "app", "manifest.json"), "utf8"));
+  if (manifest.version !== pkg.version) {
+    throw new Error(`app manifest version ${manifest.version} != package.json version ${pkg.version}`);
   }
+  const files = addonEntries("app");
+  const out = join(root, "dist", "draftsafe.xpi");
+  writeFileSync(out, zip(files));
+  for (const old of ["draftsafe-mcp.xpi", "draftsafe-bridge.xpi", "draftsafe-tools.xpi"]) {
+    rmSync(join(root, "dist", old), { force: true });
+  }
+  console.log(`wrote ${relative(root, out)} (${files.length} files)`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -85,5 +85,7 @@ describe("experiment framing (addons/bridge/api/framing.js)", () => {
 
   it("maps unknown statuses to 500", () => {
     expect(f.buildResponse(299, "{}")).toMatch(/^HTTP\/1\.1 500 /);
+    expect(f.buildResponse(409, "{}")).toMatch(/^HTTP\/1\.1 409 Conflict/);
+    expect(f.buildResponse(429, "{}")).toMatch(/^HTTP\/1\.1 429 Too Many Requests/);
   });
 });

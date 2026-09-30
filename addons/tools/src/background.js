@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-// User features and the bridge-only approval request receiver. No Experiment
-// or network listener. External requests cannot invoke internal feature handlers.
+// User features and approval manager for the single Draftsafe add-on.
 
 import { collect } from "../../shared/lib/mail.js";
 import { parseWhen, presetById, sendLaterPresets, snoozePresets, tomorrowMorning, nextMondayMorning } from "../../shared/lib/time.js";
@@ -21,10 +20,9 @@ function notify(title, message) {
 }
 
 const store = createStore(api.storage.local);
-const approvals = createApprovals({ api, store, notify, onTrustChange: updateTrustMenu });
+export const approvals = createApprovals({ api, store, notify, onTrustChange: updateTrustMenu });
 // Available only to pages belonging to this add-on; never a runtime decision API.
 globalThis.attachApprovalPage = (page, render) => approvals.attachPage(page, render);
-globalThis.draftsafeSetExternalHandler((msg, sender) => approvals.handleExternal(msg, sender));
 api.windows.onRemoved.addListener(id => approvals.onWindowRemoved(id));
 
 const snooze = createSnooze({ api, store, notify });

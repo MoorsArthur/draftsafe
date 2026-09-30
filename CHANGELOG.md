@@ -1,17 +1,47 @@
 # Changelog
 
-## 0.4.2 (2026-09-28)
+## 0.5.0 (unreleased)
 
-- Added an optional one-hour trust window started by a real Thunderbird menu or
-  approval-page click. Eligible requests still validate, reserve one slot and
-  recheck their targets before execution. Drafts and follow-ups still require
-  an individual review window.
-- Added account Inbox restoration for approved moves, plus sender-based
-  unsubscribe requests with bounded mailbox searches.
-- Kept send and forward unavailable to the MCP and bridge. Send later remains
-  a user-only Tools feature.
-- Improved startup readiness for the bridge-to-Tools request channel and
-  documented the security and installation boundaries.
+- Added `open_compose_for_review` for plain-text new messages and threaded
+  replies. It opens a native Thunderbird composer, returns `sent:false`, and
+  requires the user's Send click. One agent-opened window and twelve opens per
+  hour are allowed; trust cannot bypass review. Isolated Thunderbird smoke
+  confirms that opening does not reach SMTP, while a real Send click does.
+- Combined the Bridge and Tools code into one Thunderbird add-on, updating the
+  existing Tools ID so local Snooze, Send later and approval history remain.
+  The old Bridge must be disabled before installation. The combined manifest
+  includes `compose.send` for user-only Send later; SECURITY.md now states the
+  resulting code-level, rather than manifest-level, MCP send boundary.
+- Removed cross-extension messaging from the release XPI. A local interface
+  only creates approval requests and reads status; trusted click decisions
+  remain private to the approval manager.
+- Made `list_folders_detailed` use folder metadata instead of scanning every
+  message for oldest/newest dates. Those fields now return `null`.
+- Added `check_connection`, accurate MCP version reporting, and clearer
+  read-timeout and one-hour-trust instructions. Smoke uses its own connection
+  directory so it cannot overwrite a live Draftsafe connection file.
+- Removed the approval window's explicit focus and attention requests after
+  reports of Thunderbird pulling focus from another app. The window still
+  opens for review; behavior in existing user profiles remains unverified.
+- GUI smoke now refuses an interactive desktop session after focus switching
+  was reported during an Xvfb run. Standalone Thunderbird 153 passed 55/55
+  isolated smoke checks; the live Snap/profile remain untouched.
+
+## 0.4.3 (2026-09-29, not installed live)
+
+- Bounded slow Thunderbird reads and reported a read timeout separately from
+  a disconnected bridge. MCP re-reads the connection file on every call.
+
+## 0.4.2 (2026-09-29)
+
+- Trusted unsubscribe requests can obtain HTTPS permission from the starting
+  click. Sender lookup prioritizes Trash, Junk, Inbox and Archive and reports
+  bounded failure reasons.
+
+## 0.4.0 (2026-09-28)
+
+- Added user-started one-hour trust for eligible approval requests and
+  approved moves back to the account's special-use Inbox.
 
 ## 0.3.0 (2026-09-28)
 

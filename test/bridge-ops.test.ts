@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMailOps } from "../addons/bridge/src/bridge/ops.js";
 import { createRoutes } from "../addons/shared/lib/mail-routes.js";
+import { createDeadline } from "../addons/shared/lib/validate.js";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 
 function setup(opts: { withSaveMessage?: boolean } = {}) {
@@ -11,6 +12,16 @@ function setup(opts: { withSaveMessage?: boolean } = {}) {
 }
 
 describe("bridge mail operations", () => {
+  it("lists folder counts without scanning every message", async () => {
+    const { fake, routes } = setup();
+    for (let i = 0; i < 40; i++) fake.addMessage({ folderId: "account1://INBOX", subject: `Mail ${i}` });
+    const result: any = await routes["folders.detailed"]({});
+    const inbox = result.folders.find((folder: any) => folder.id === "account1://INBOX");
+    expect(inbox).toMatchObject({ count: 40, unread: 40, oldest: null, newest: null });
+    expect(fake.api.messages.query).not.toHaveBeenCalled();
+    expect(fake.api.messages.continueList).not.toHaveBeenCalled();
+  });
+
   it("paginates search results with cursors across Thunderbird list pages", async () => {
     const { fake, routes } = setup();
     for (let i = 0; i < 7; i++) fake.addMessage({ folderId: "account1://INBOX", subject: `Invoice ${i}` });
@@ -38,6 +49,17 @@ describe("bridge mail operations", () => {
     expect(r.messages.map((m: any) => m.subject)).toEqual(["In inbox"]);
     const q = fake.api.messages.query.mock.calls.at(-1)![0];
     expect(q).toMatchObject({ folderId: ["account1://INBOX"], author: "bob@x", unread: true });
+  });
+
+  it("checks the search deadline after Thunderbird's query returns", async () => {
+    const { fake, routes } = setup();
+    let clock = 0;
+    fake.api.messages.query.mockImplementationOnce(async () => {
+      clock = 80_001;
+      return { messages: [], id: null };
+    });
+    await expect(routes["messages.search"]({ query: "Kioz", limit: 10 }, createDeadline(80_000, () => clock)))
+      .rejects.toMatchObject({ code: "timeout", status: 504 });
   });
 
   it("returns text bodies, converts HTML, truncates, and lists attachments without content", async () => {

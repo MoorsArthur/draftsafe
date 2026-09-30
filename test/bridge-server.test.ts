@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MAX_IN_FLIGHT, MAX_RESPONSE_BYTES, createRequestHandler } from "../addons/bridge/src/bridge/server.js";
+import { HANDLER_BUDGET_MS, MAX_IN_FLIGHT, MAX_RESPONSE_BYTES, createRequestHandler } from "../addons/bridge/src/bridge/server.js";
 import { loadFraming } from "./helpers/framing.js";
 import { generateToken, timingSafeEqual } from "../addons/bridge/src/bridge/security.js";
 import { BridgeError } from "../addons/bridge/src/bridge/validate.js";
@@ -200,6 +200,30 @@ describe("bridge request validation (addons/bridge/src/bridge/server.js)", () =>
     release();
     await Promise.all(pending);
     expect((await handle(request({ target: "/v1/messages.get" }))).status).toBe(200);
+  });
+
+  it("times out a stuck search response but retains its in-flight permit until Thunderbird settles", async () => {
+    vi.useFakeTimers();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const slow = vi.fn(async () => { await gate; return {}; });
+    const { handle } = setup({ "messages.search": slow });
+    try {
+      const pending = Array.from({ length: MAX_IN_FLIGHT }, () => handle(request({ target: "/v1/messages.search" })));
+      await vi.advanceTimersByTimeAsync(HANDLER_BUDGET_MS + 1);
+      const responses = await Promise.all(pending);
+      for (const response of responses) {
+        expect(response.status).toBe(504);
+        expect(JSON.parse(response.body).error.code).toBe("timeout");
+      }
+      expect((await handle(request({ target: "/v1/messages.search" }))).status).toBe(503);
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect((await handle(request({ target: "/v1/messages.search" }))).status).toBe(200);
+    } finally {
+      release();
+      vi.useRealTimers();
+    }
   });
 
   it("replaces oversized results with a fixed error", async () => {

@@ -1,6 +1,6 @@
 {
   "name": "draftsafe-mcp",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Read local Thunderbird mail and request mailbox changes with trusted-click approval. No agent send capability.",
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "npm run build:mcp && npm run build:xpi",
-    "build:mcp": "tsc -p tsconfig.json",
+    "build:mcp": "node scripts/sync-version.mjs && tsc -p tsconfig.json",
     "build:xpi": "node scripts/build-xpi.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

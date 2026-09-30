@@ -1,23 +1,29 @@
 // SPDX-License-Identifier: MIT
 // Loopback bridge with a fixed read/request route table. Mailbox changes
-// are relayed to Tools for trusted-click approval. No send/move/delete permission.
+// are sent to the local approval manager, never executed by an HTTP handler.
 
 import { createMailOps } from "./bridge/ops.js";
 import { createRoutes } from "./bridge/routes.js";
 import { createRequestHandler } from "./bridge/server.js";
 import { generateToken } from "./bridge/security.js";
-import { createRelay } from "./bridge/relay.js";
 
 const api = globalThis.messenger;
 const version = api.runtime.getManifest().version;
 
 let secrets = null;
 let retryDelay = 1_000;
-const handleRequest = createRequestHandler({
-  getSecrets: () => secrets,
-  routes: createRoutes({ ops: createMailOps({ api }), version, relay: createRelay({ api }) }),
-});
-api.draftsafeBridge.onRequest.addListener(req => handleRequest(req));
+let configured = false;
+
+export function configureBridge(relay) {
+  if (configured) throw new Error("Draftsafe bridge is already configured");
+  const handleRequest = createRequestHandler({
+    getSecrets: () => secrets,
+    routes: createRoutes({ ops: createMailOps({ api }), version, relay }),
+  });
+  api.draftsafeBridge.onRequest.addListener(req => handleRequest(req));
+  configured = true;
+  return startBridge();
+}
 
 export async function startBridge() {
   try {
@@ -36,5 +42,3 @@ export async function startBridge() {
     retryDelay = Math.min(retryDelay * 2, 60_000);
   }
 }
-
-export const ready = startBridge();

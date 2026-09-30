@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Read-only helpers over the MailExtension APIs, shared by both add-ons.
+// Read-only helpers over the MailExtension APIs, shared inside one add-on.
 // `api` is the `messenger` global (injected so tests can pass a fake).
 // Nothing here moves, sends or deletes mail.
 
