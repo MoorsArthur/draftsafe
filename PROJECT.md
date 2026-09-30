@@ -2,13 +2,13 @@
 
 ## Deployment
 
-- Canonical source: `MoorsArthur/draftsafe`, currently private. This checkout is
-  the active feature branch; the old `thunderbird-mcp` repository is a local
-  historical backup.
+- Canonical source: `MoorsArthur/draftsafe`, currently private. PR #2 merged
+  the 0.8.0 candidate into `main`; the old `thunderbird-mcp` repository is a
+  local historical backup.
 - One combined Draftsafe 0.7.0 add-on is installed in the maintainer's
   Thunderbird profile. The 0.8.0 source is a release candidate.
 - Codex and Claude use this repository's `scripts/launch.mjs` as their MCP
-  entry point. Public MCP and Thunderbird update channels are not active.
+  entry point. Public update files are being prepared in a separate repository.
 
 ## Architecture
 
@@ -25,15 +25,19 @@
 - 2026-09-30: Keep Send later in the combined add-on and keep all agent
   compose routes free of send calls.
 - 2026-09-30: Use reviewed Thunderbird Add-ons updates for the XPI and a
-  separately signed HTTPS GitHub release feed for the MCP server.
+  separately signed HTTPS GitHub release feed for the MCP server (superseded
+  for the private-source trial by the 2026-10-01 distribution decision).
 - 2026-09-30: Keep the old local repository as a backup while active MCP
   clients use this GitHub-connected checkout.
+- 2026-10-01: Keep full source and history private while publishing signed
+  versioned update artifacts publicly; use a self-hosted XPI update manifest
+  until an ATN listing is separately reviewed.
 
 ## Status
 
 - State: active
-- Phase: release preparation
-- Now: The 0.8.0 candidate passes 284 tests and 58 isolated Thunderbird smoke checks; its signed MCP bundle verifies locally.
-- Next: Review and install the candidate in the live profile, then authorize public release and Thunderbird submission separately.
-- Blocked by: Live installation and external publication require owner review of the prepared candidate.
+- Phase: private-source update publication
+- Now: PR #2 merged the verified 0.8.0 candidate; a public artifact channel is being prepared while source stays private.
+- Next: Verify and publish both update manifests and versioned bundles, then install 0.8.0 once in the live profile.
+- Blocked by: None.
 - Updated: 2026-10-01

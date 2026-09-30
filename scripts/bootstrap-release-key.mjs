@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 const bundle = await readFile(path.join(root, "dist", `draftsafe-mcp-${pkg.version}.json`));
 parseBundle(bundle, pkg.version);
-const bundleUrl = `https://github.com/MoorsArthur/draftsafe/releases/download/v${pkg.version}/draftsafe-mcp-${pkg.version}.json`;
+const bundleUrl = `https://github.com/MoorsArthur/draftsafe-updates/releases/download/v${pkg.version}/draftsafe-mcp-${pkg.version}.json`;
 const secretsDir = path.join(os.homedir(), ".config", "secrets");
 const secretPath = path.join(secretsDir, `draftsafe-release-${pkg.version}.env`);
 const publicPath = path.join(root, "updates", "public-key.txt");

@@ -14,6 +14,9 @@
 - Search requests now use the requested page size and avoid prefetching an
   extra page. Recipient lookup shares the single search slot so a slow Sent
   query cannot pile up with mail searches.
+- Added a self-hosted Thunderbird update manifest and a public signed MCP
+  feed target so the full source repository can stay private during the
+  initial distribution trial.
 
 ## 0.7.1 (release candidate)
 

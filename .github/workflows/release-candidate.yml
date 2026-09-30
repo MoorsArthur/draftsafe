@@ -45,13 +45,14 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum draftsafe.xpi draftsafe-mcp-*.json > SHA256SUMS
+          sha256sum draftsafe-*.xpi draftsafe-mcp-*.json thunderbird-updates.json > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: draftsafe-${{ github.ref_name }}-candidate
           path: |
-            dist/draftsafe.xpi
+            dist/draftsafe-*.xpi
             dist/draftsafe-mcp-*.json
+            dist/thunderbird-updates.json
             dist/SHA256SUMS
             dist/smoke-report.json
           if-no-files-found: error

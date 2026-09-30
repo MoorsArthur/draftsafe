@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "06acba71a305052fd53b322092d70e79bb2f718a",
-  "generatedAt": "2026-09-30T22:27:36.054Z",
+  "gitCommitHash": "4afb58c2f97cab3160428b05fb3a463b83263f83",
+  "generatedAt": "2026-09-30T22:49:23.358Z",
   "files": {
     ".github/workflows/ci.yml": {
       "filePath": ".github/workflows/ci.yml",
@@ -15,12 +15,12 @@
     },
     ".github/workflows/release-candidate.yml": {
       "filePath": ".github/workflows/release-candidate.yml",
-      "contentHash": "7d57ad1b656e712096226ed5bb8518d01a661c5e07dbcf94188d7a17886dc2f5",
+      "contentHash": "8f8b157f3853ac6f00b940612697331e9744b15f3001abaf372f0230cc88566b",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 58,
+      "totalLines": 59,
       "hasStructuralAnalysis": false
     },
     "AGENTS.md": {
@@ -35,12 +35,12 @@
     },
     "CHANGELOG.md": {
       "filePath": "CHANGELOG.md",
-      "contentHash": "2979de3c182b7faf7c4be16118004ed0f342a295c29d2a3c38b9b97716555193",
+      "contentHash": "650d8bfcfd2283b33e9ab00b5546ed27f9cd71b2d69c8f6c655a77f7c68bad87",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 176,
+      "totalLines": 179,
       "hasStructuralAnalysis": false
     },
     "CONTRIBUTING.md": {
@@ -55,42 +55,42 @@
     },
     "PRIVACY.md": {
       "filePath": "PRIVACY.md",
-      "contentHash": "80a3a9aa475333eeea07c53d2a7eb62ab40bf93337fc8b27064c5c20c658f9ba",
+      "contentHash": "691e940816d03ad634d783a94e84993bf4a4d70551d2b9f9faba39467e62661c",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 53,
+      "totalLines": 55,
       "hasStructuralAnalysis": false
     },
     "PROJECT.md": {
       "filePath": "PROJECT.md",
-      "contentHash": "68d83d9d889ec2fd23598087b433225ffe6a0810872ca2166916e6c2f9cc0654",
+      "contentHash": "0da57ba65bfd41c947fc0f92f5fe144b76d4f0dbbfea3726b858b8e7fa653d88",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 40,
+      "totalLines": 44,
       "hasStructuralAnalysis": false
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "31be4c2d07a6cf44505554eeace010770d074315b9407e34b488279527e0251f",
+      "contentHash": "98660cd7945ed9c31da73021a2a7b590821eb2eb28a929fe73db908c6db8bf97",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 435,
+      "totalLines": 438,
       "hasStructuralAnalysis": false
     },
     "SECURITY.md": {
       "filePath": "SECURITY.md",
-      "contentHash": "1364f53c3ad672ba1d2cde7178f923292d2c95ff68e2686682d056f8dfbc6970",
+      "contentHash": "889a20cd8601e2f626a0d4a86832cfc8fd8720f005876d836db8b8eded714e8d",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 209,
+      "totalLines": 210,
       "hasStructuralAnalysis": false
     },
     "addons/app/background.html": {
@@ -105,12 +105,12 @@
     },
     "addons/app/manifest.json": {
       "filePath": "addons/app/manifest.json",
-      "contentHash": "54af09e1c32f7170b8eee5fc1f838025b9700216ad9aca7ec6da0ad6099a28a5",
+      "contentHash": "c80704f863f1b69c18b53623329c52a1cc65ca6e3fb6337760ef163f2e2a950e",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 69,
+      "totalLines": 70,
       "hasStructuralAnalysis": false
     },
     "addons/app/src/background.js": {
@@ -3186,17 +3186,17 @@
     },
     "docs/atn-submission.md": {
       "filePath": "docs/atn-submission.md",
-      "contentHash": "2eea079197c89f0fd94e331aef15e0e9a97190c92685c856b509d05ccff62aab",
+      "contentHash": "7b3d4c038f4f5ce18ddcb96debd3efbfc6c296b909e91f55a551a4bb36ba5bd3",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 72,
+      "totalLines": 73,
       "hasStructuralAnalysis": false
     },
     "docs/release-channels.md": {
       "filePath": "docs/release-channels.md",
-      "contentHash": "b25eb4ea0dd736307318539381a280b6a6e76e43d3e7893caa8730feb5578891",
+      "contentHash": "f6cf7c31f85bb88ce7fd4e269b604b34aac5a3a97f24b098f175e3424df530db",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -3715,17 +3715,17 @@
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "c407be1176cbedb708b4f37b5bce9e187ab6fad6ee263838e80e0936ca3e6512",
+      "contentHash": "6ecd2c9d10f43ce1c9a32e5cad1cd2bcdcfdd14663c09bba18e595e9884c2f36",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 44,
+      "totalLines": 45,
       "hasStructuralAnalysis": false
     },
     "scripts/bootstrap-release-key.mjs": {
       "filePath": "scripts/bootstrap-release-key.mjs",
-      "contentHash": "e4b66ed89aefd0ab5ddb103f1b22e00a9790667d56b4aa7a1780702aaef756e3",
+      "contentHash": "816c7d4148f02f7d21d0360fadbe009f5e92d4d6ab7c937daf04a6fac2c6b6de",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3774,6 +3774,43 @@
       ],
       "exports": [],
       "totalLines": 41,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/build-thunderbird-update.mjs": {
+      "filePath": "scripts/build-thunderbird-update.mjs",
+      "contentHash": "fce91d814a4ffb968387eaaf1d7116d25c8d234320d711eee0b36820bfba6d2f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "copyFile",
+            "readFile",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 29,
       "hasStructuralAnalysis": true
     },
     "scripts/build-update-bundle.mjs": {
@@ -3918,7 +3955,7 @@
     },
     "scripts/launch.mjs": {
       "filePath": "scripts/launch.mjs",
-      "contentHash": "d6825fde0ebcfef41cb81cb5db4ec1a0a4a1f1880c770d1846f4bde54cfb58ed",
+      "contentHash": "66ccfe50b2345cdc24085e57d2d304791ab23600ab2cd9336815bca288df5d10",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3976,7 +4013,7 @@
     },
     "scripts/prepare-release.mjs": {
       "filePath": "scripts/prepare-release.mjs",
-      "contentHash": "212cf010c1802729ec68f54c9455d705cf4f6af40a24deca29ba01486f7c586f",
+      "contentHash": "f254f709b2e0ad8eec4bf91f8bd58170763268e4a515ae2585f526b9f280308e",
       "functions": [],
       "classes": [],
       "imports": [
@@ -4011,7 +4048,7 @@
     },
     "scripts/sign-update.mjs": {
       "filePath": "scripts/sign-update.mjs",
-      "contentHash": "553786512a73a35fa50c44b2fe4a21303fc778f929a03f4ce6fbdd8dce00f6e4",
+      "contentHash": "580b5759f5260cfce0752154dd539f667fd49552c4b94f63b6a10f82070bf5ba",
       "functions": [],
       "classes": [],
       "imports": [
@@ -4026,8 +4063,15 @@
         {
           "source": "node:fs/promises",
           "specifiers": [
+            "lstat",
             "readFile",
             "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
           ]
         },
         {
@@ -4050,7 +4094,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 26,
+      "totalLines": 40,
       "hasStructuralAnalysis": true
     },
     "scripts/smoke/build-tools.mjs": {
@@ -4772,7 +4816,7 @@
     },
     "test/bridge-permissions.test.ts": {
       "filePath": "test/bridge-permissions.test.ts",
-      "contentHash": "f807ca8fc3f0b532cdc712eab99aae4f7e0f4e464781fdc60492c940dd3ac44c",
+      "contentHash": "8a8ed7f1ab0276fd1df6af43ed83bce7ac3d022e21666869c4fc44c319d0bc94",
       "functions": [
         {
           "name": "manifest",
@@ -4839,7 +4883,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 74,
+      "totalLines": 76,
       "hasStructuralAnalysis": true
     },
     "test/bridge-server.test.ts": {

@@ -20,8 +20,8 @@
       "GitHub Actions"
     ],
     "description": "Read local Thunderbird mail and request mailbox changes with trusted-click approval. No agent send capability.",
-    "analyzedAt": "2026-09-30T22:27:35.778Z",
-    "gitCommitHash": "06acba71a305052fd53b322092d70e79bb2f718a"
+    "analyzedAt": "2026-09-30T22:49:23.082Z",
+    "gitCommitHash": "4afb58c2f97cab3160428b05fb3a463b83263f83"
   },
   "nodes": [
     {
@@ -3798,6 +3798,19 @@
       "name": "bootstrap-release-key.mjs",
       "filePath": "scripts/bootstrap-release-key.mjs",
       "summary": "Build or maintenance command for bootstrap-release-key.mjs.",
+      "tags": [
+        "build-system",
+        "release",
+        "maintenance"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:scripts/build-thunderbird-update.mjs",
+      "type": "file",
+      "name": "build-thunderbird-update.mjs",
+      "filePath": "scripts/build-thunderbird-update.mjs",
+      "summary": "Build or maintenance command for build-thunderbird-update.mjs.",
       "tags": [
         "build-system",
         "release",
@@ -9083,6 +9096,7 @@
       "description": "Package, release, smoke and MCP update commands.",
       "nodeIds": [
         "file:scripts/bootstrap-release-key.mjs",
+        "file:scripts/build-thunderbird-update.mjs",
         "file:scripts/build-update-bundle.mjs",
         "file:scripts/build-xpi.mjs",
         "function:scripts/build-xpi.mjs:importsOf",
