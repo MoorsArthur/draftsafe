@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb xautomation x11-utils
           mkdir -p .release-tb
           curl --fail --location --retry 3 --max-time 180 \
             'https://download.mozilla.org/?product=thunderbird-latest&os=linux64&lang=en-US' \

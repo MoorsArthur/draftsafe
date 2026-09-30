@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "4afb58c2f97cab3160428b05fb3a463b83263f83",
-  "generatedAt": "2026-09-30T22:49:23.358Z",
+  "gitCommitHash": "6645114601f6cae8d15be7bcd2ec5c81a590014e",
+  "generatedAt": "2026-09-30T23:18:03.776Z",
   "files": {
     ".github/workflows/ci.yml": {
       "filePath": ".github/workflows/ci.yml",
@@ -15,7 +15,7 @@
     },
     ".github/workflows/release-candidate.yml": {
       "filePath": ".github/workflows/release-candidate.yml",
-      "contentHash": "8f8b157f3853ac6f00b940612697331e9744b15f3001abaf372f0230cc88566b",
+      "contentHash": "600f213eb3b02dcffe8cf7f92265bcba8ad5e0a734adc6d633351cfae1557b31",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -35,12 +35,12 @@
     },
     "CHANGELOG.md": {
       "filePath": "CHANGELOG.md",
-      "contentHash": "650d8bfcfd2283b33e9ab00b5546ed27f9cd71b2d69c8f6c655a77f7c68bad87",
+      "contentHash": "f2876cf78adef4656a3bb8449c2612545eeba228ffc2d4bf008be2e6937beaaf",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 179,
+      "totalLines": 186,
       "hasStructuralAnalysis": false
     },
     "CONTRIBUTING.md": {
@@ -65,7 +65,7 @@
     },
     "PROJECT.md": {
       "filePath": "PROJECT.md",
-      "contentHash": "0da57ba65bfd41c947fc0f92f5fe144b76d4f0dbbfea3726b858b8e7fa653d88",
+      "contentHash": "a0058ca7bd4e792d60dd7fb24fc96e4729827d29ed3af3d7e31d2c08fdbf85aa",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -75,7 +75,7 @@
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "98660cd7945ed9c31da73021a2a7b590821eb2eb28a929fe73db908c6db8bf97",
+      "contentHash": "f193b91b00e78c1308b97e2512778f12d545550e6f3440979bc9fe77a97bc82c",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -105,7 +105,7 @@
     },
     "addons/app/manifest.json": {
       "filePath": "addons/app/manifest.json",
-      "contentHash": "c80704f863f1b69c18b53623329c52a1cc65ca6e3fb6337760ef163f2e2a950e",
+      "contentHash": "99368ad5236c3ac06d16974fdf56e1584cd82309468712b8e8b61669dc359946",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -3703,7 +3703,7 @@
     },
     "mcp/src/version.ts": {
       "filePath": "mcp/src/version.ts",
-      "contentHash": "0e701ce2c199c65e0cedae06baf5e686a61eff431fc51f16b34c4467c228b7b6",
+      "contentHash": "6054530fe7ac370031b762234f1b6b7c29c26d0ade901856fba13b51695d7207",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -3715,7 +3715,7 @@
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "6ecd2c9d10f43ce1c9a32e5cad1cd2bcdcfdd14663c09bba18e595e9884c2f36",
+      "contentHash": "cd689f653b515359ddc7a5029d036c304a15e9e23943639ec510fbb018d35689",
       "functions": [],
       "classes": [],
       "imports": [],

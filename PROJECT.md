@@ -6,7 +6,7 @@
   the 0.8.0 candidate into `main`; the old `thunderbird-mcp` repository is a
   local historical backup.
 - One combined Draftsafe 0.7.0 add-on is installed in the maintainer's
-  Thunderbird profile. The 0.8.0 source is a release candidate.
+  Thunderbird profile. The 0.8.1 source is a release candidate.
 - Codex and Claude use this repository's `scripts/launch.mjs` as their MCP
   entry point. Public update files are being prepared in a separate repository.
 
@@ -37,7 +37,7 @@
 
 - State: active
 - Phase: private-source update publication
-- Now: PR #2 merged the verified 0.8.0 candidate; a public artifact channel is being prepared while source stays private.
-- Next: Verify and publish both update manifests and versioned bundles, then install 0.8.0 once in the live profile.
+- Now: The 0.8.1 local gate passes 284 tests and 58 isolated Thunderbird checks; the tag gate needs its X11 dependency fix reviewed.
+- Next: Merge the CI fix, pass the 0.8.1 tag gate, publish update files, then install the XPI once in the live profile.
 - Blocked by: None.
 - Updated: 2026-10-01

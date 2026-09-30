@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1 (first public artifact candidate)
+
+- Install the X11 utilities required by the isolated Thunderbird smoke test
+  on the release runner. Version 0.8.0 was tagged privately but its candidate
+  workflow stopped before producing an artifact; no 0.8.0 public release was
+  published.
+
 ## 0.8.0 (release candidate)
 
 - Added `fast:true` to message search. It returns Thunderbird's first page
