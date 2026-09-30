@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Draftsafe",
   "short_name": "Draftsafe",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Read Thunderbird mail through MCP and review mailbox changes. Includes Snooze, Send later and Follow-ups.",
   "author": "Arthur Moors",
   "browser_specific_settings": {

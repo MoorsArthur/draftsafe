@@ -177,7 +177,7 @@ was reported during an Xvfb test run.
 
 ### Updates
 
-The 0.8.0 XPI has a self-hosted update URL in a public distribution repository.
+The 0.8.1 XPI has a self-hosted update URL in a public distribution repository.
 The currently installed 0.7.0 XPI needs one manual update to join that channel.
 Later versions can be picked up by Thunderbird's normal add-on update checks.
 This private-source trial is not listed on addons.thunderbird.net. The public
