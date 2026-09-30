@@ -22,6 +22,8 @@ beforeAll(() => {
 describe("single Draftsafe release add-on", () => {
   it("uses the existing Tools ID so its local state survives upgrade", () => {
     expect(manifest().browser_specific_settings.gecko.id).toBe("draftsafe-tools@armain.be");
+    expect(manifest().browser_specific_settings.gecko.update_url).toBe(
+      "https://raw.githubusercontent.com/MoorsArthur/draftsafe-updates/main/thunderbird-updates.json");
     expect(manifest().experiment_apis).toHaveProperty("draftsafeBridge");
     expect(manifest().permissions).toContain("compose.send");
     expect(manifest().permissions).not.toContain("messagesDelete");

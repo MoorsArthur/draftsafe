@@ -1,63 +1,63 @@
 # Release channels
 
-The GitHub-connected `MoorsArthur/draftsafe` repository is the source of truth.
-The old local `thunderbird-mcp` checkout is a historical backup. MCP clients
-launch `scripts/launch.mjs` from this repository. Neither channel is live
-until the public release and Thunderbird review steps below complete.
+`MoorsArthur/draftsafe` remains the private source repository. The public
+`MoorsArthur/draftsafe-updates` repository distributes only versioned XPI and
+MCP bundles, checksums and update metadata. Those bundles contain readable
+code even though the full source history stays private. The old local
+`thunderbird-mcp` checkout is a historical backup.
 
 ## Thunderbird add-on
 
-Publish `dist/draftsafe.xpi` as a new version of the existing
-`draftsafe-tools@armain.be` add-on on addons.thunderbird.net. Keep that ID and
-do not put a self-hosted `update_url` in the ATN-bound manifest. The
-[submission draft](atn-submission.md), [privacy policy](../PRIVACY.md), source
-tag and isolated smoke report accompany the submission. Thunderbird reviews
-the privileged Experiment and mail permissions. The listed channel can update
-installed copies only after review and approval.
+The `draftsafe-tools@armain.be` add-on has a self-hosted `update_url` pointing
+to the stable HTTPS `thunderbird-updates.json` file in the public distribution
+repository. `npm run build:thunderbird-update` copies the built XPI to a
+versioned filename and writes the add-on ID, version, exact release asset URL
+and SHA-256 hash into that manifest. Keep the public URL stable: installed
+copies depend on it. The already-installed 0.7.0 XPI has no self-hosted URL,
+so it must be updated once by hand to enter this channel. Later releases can
+be picked up by Thunderbird's normal add-on update checks.
+
+The [ATN submission draft](atn-submission.md) is for a future public listing.
+The current private-source trial is self-distributed and has not been reviewed
+or listed by Thunderbird Add-ons. A later move to ATN needs a tested channel
+transition; do not publish competing versions under this ID.
 
 ## MCP server
 
 The pinned Ed25519 [public key](../updates/public-key.txt) identifies the MCP
 release signer. Its private counterpart is stored locally in
-`~/.config/secrets/draftsafe-release-0.8.0.env` with mode 0600 and must never be
-committed, uploaded or printed. A future release operator supplies that key
-to `npm run sign:update` through `DRAFTSAFE_RELEASE_PRIVATE_KEY` and sets
-`DRAFTSAFE_RELEASE_BUNDLE_URL` to the exact versioned GitHub release asset.
+`~/.config/secrets/draftsafe-release-0.8.0.env` with mode 0600. Never commit,
+upload or print it. `npm run sign:update` accepts its file path through
+`DRAFTSAFE_RELEASE_KEY_FILE` and the exact versioned public asset URL through
+`DRAFTSAFE_RELEASE_BUNDLE_URL`. It signs the version, URL and SHA-256 of the
+already-reviewed bundle. The stable metadata URL is:
 
-For version `X.Y.Z`, a release contains:
+`https://raw.githubusercontent.com/MoorsArthur/draftsafe-updates/main/update-manifest.json`
 
-- `draftsafe.xpi`
-- `draftsafe-mcp-X.Y.Z.json`
-- `update-manifest.json`, signed over the version, versioned bundle URL and
-  SHA-256 hash
-- `SHA256SUMS` and `smoke-report.json`
+The launcher checks that URL only when `DRAFTSAFE_AUTO_UPDATE=1`. It follows
+at most three HTTPS redirects, checks the signature and bundle hash, and
+stages a newer server for the next MCP start. It sends no GitHub credential,
+bridge token or mailbox content. A bad or offline check leaves the current
+server running; `--rollback` restores the previous version.
 
-The metadata URL used by installed launchers is
-`https://github.com/MoorsArthur/draftsafe/releases/latest/download/update-manifest.json`.
-The signed metadata points to a versioned bundle URL, so a new latest release
-updates the feed without changing client configuration. Both downloads allow
-at most three HTTPS redirects; the bundle is checked against the signed hash.
-If a check fails, the active MCP server keeps running. An update is staged for
-the next MCP launch, and `--rollback` restores the previous version.
+## Publication order
 
-## Publication checklist
+1. Run `npm run release:check` with a standalone Thunderbird binary. Review
+   source, privacy copy, smoke report and public artifacts.
+2. Publish a version tag from the private source commit and compare the tag
+   workflow's candidate hashes with the locally reviewed XPI, MCP bundle and
+   Thunderbird manifest. The workflow never publishes automatically.
+3. Sign the MCP bundle's exact public release URL and verify the signature
+   with the pinned public key. Publish the versioned XPI and MCP bundle with
+   their checksums and smoke report in the public distribution repository.
+4. Publish `update-manifest.json` and `thunderbird-updates.json` in that
+   repository after the versioned assets exist. Fetch all three URLs without
+   credentials and check exact hashes, ID, version and signature.
+5. Enable the MCP updater in active clients, back up the live Thunderbird
+   profile, install the XPI once, restart and verify bridge health. Confirm
+   the installed update URL. Test a real old-to-new Thunderbird update when a
+   later version exists before claiming that behavior has been observed.
 
-1. Review the exact source diff, history audit, privacy copy and signer public
-   key. Build and run `npm run release:check` with standalone Thunderbird in a
-   separate headless session.
-2. Create and push a matching `vX.Y.Z` tag only after authorizing a release.
-   The tag workflow runs the same isolated gate and uploads candidate
-   artifacts; it never publishes them automatically.
-3. Compare candidate hashes to the locally reviewed artifacts. Sign the exact
-   release bundle, verify the signature with the pinned public key, then
-   publish the GitHub release assets and make the repository public with the
-   owner's approval.
-4. Fetch the public metadata and bundle without credentials and verify the
-   staged update in a throwaway MCP data directory. Only then enable
-   `DRAFTSAFE_AUTO_UPDATE=1` for active MCP clients.
-5. Submit the XPI to Thunderbird Add-ons with the reviewer materials. Wait for
-   approval. Verify an old-to-new update in a throwaway Thunderbird profile
-   before calling add-on auto-updates active.
-
-Do not confuse a built candidate, a published GitHub release and an approved
-Thunderbird listing. They are separate states.
+The public distribution repository exposes the bundles to everyone. The
+private source repository and its commit history remain accessible only to
+authorized collaborators.

@@ -39,7 +39,7 @@ if (process.env.DRAFTSAFE_AUTO_UPDATE === "1") {
     XDG_DATA_HOME: process.env.XDG_DATA_HOME || "",
     DRAFTSAFE_AUTO_UPDATE: "1",
     DRAFTSAFE_UPDATE_URL: process.env.DRAFTSAFE_UPDATE_URL ||
-      "https://github.com/MoorsArthur/draftsafe/releases/latest/download/update-manifest.json",
+      "https://raw.githubusercontent.com/MoorsArthur/draftsafe-updates/main/update-manifest.json",
     DRAFTSAFE_UPDATE_PUBLIC_KEY: pinnedKey,
     DRAFTSAFE_BUNDLED_VERSION: pkg.version,
   };

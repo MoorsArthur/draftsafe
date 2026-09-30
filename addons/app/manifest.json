@@ -8,7 +8,8 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "draftsafe-tools@armain.be",
-      "strict_min_version": "140.0"
+      "strict_min_version": "140.0",
+      "update_url": "https://raw.githubusercontent.com/MoorsArthur/draftsafe-updates/main/thunderbird-updates.json"
     }
   },
   "icons": {

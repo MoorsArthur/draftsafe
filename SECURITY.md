@@ -8,9 +8,9 @@ Draft and follow-up requests still require their own approval click.
 
 ## Updates
 
-The add-on and MCP server are separate release artifacts. Thunderbird's
-reviewed add-on channel can update the XPI after a public listing; no
-self-hosted update URL is present in the ATN-bound manifest. The MCP updater
+The add-on and MCP server are separate release artifacts. The current add-on
+uses a self-hosted HTTPS update URL and a SHA-256-pinned XPI manifest. It is
+not listed or reviewed on Thunderbird Add-ons. The MCP updater
 is opt-in and runs outside the mail process. It requires a user-pinned Ed25519
 public key, HTTPS metadata with at most three HTTPS redirects, a signed release version and
 bundle hash, an exact file allowlist, and lockfile-pinned dependency install
@@ -22,7 +22,8 @@ rollback. The MCP checks bridge protocol once per Thunderbird connection;
 A malicious signing key holder, compromised dependency pinned by the signed
 lockfile, or a compromised add-on build can still run code with the authority
 of the respective process. Release signing, source review, isolated smoke
-tests and Thunderbird review remain required before publishing an update.
+tests and artifact review remain required before publishing an update. A
+future Thunderbird Add-ons listing requires that service's review separately.
 
 ## Authority and limits
 

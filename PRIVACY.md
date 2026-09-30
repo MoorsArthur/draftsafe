@@ -30,10 +30,12 @@ trust session may request broad HTTPS permission for this feature. The grant
 can remain in Thunderbird after trust ends; you can revoke it in Add-ons
 Manager. Draftsafe does not follow redirects for unsubscribe requests.
 
-If you separately enable MCP automatic updates, the updater requests signed
-release metadata and bundles over HTTPS. Its requests do not include mailbox
-contents or the bridge token. Thunderbird may contact its normal add-on update
-service when a reviewed Draftsafe add-on is listed there.
+Thunderbird checks the public Draftsafe update manifest and XPI over HTTPS
+after you install a version with the self-hosted update URL. If you separately
+enable MCP automatic updates, its updater requests signed release metadata
+and bundles over HTTPS. These requests expose normal network details such as
+your IP address to GitHub but do not include mailbox contents or the bridge
+token.
 
 Draftsafe's agent tools cannot send email. Agent-prepared compose windows
 remain under your control; you review and click Thunderbird's Send button.

@@ -28,6 +28,7 @@
     "test:watch": "vitest",
     "smoke": "node scripts/smoke/run-smoke.mjs",
     "build:update": "node scripts/build-update-bundle.mjs",
+    "build:thunderbird-update": "node scripts/build-thunderbird-update.mjs",
     "sign:update": "node scripts/sign-update.mjs",
     "release:check": "node scripts/prepare-release.mjs"
   },

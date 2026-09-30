@@ -177,16 +177,19 @@ was reported during an Xvfb test run.
 
 ### Updates
 
-Thunderbird will update a publicly listed Draftsafe XPI through its normal
-Add-ons Manager once a release is reviewed and listed on addons.thunderbird.net.
-That listing is not live yet, so the current XPI still needs manual updates.
+The 0.8.0 XPI has a self-hosted update URL in a public distribution repository.
+The currently installed 0.7.0 XPI needs one manual update to join that channel.
+Later versions can be picked up by Thunderbird's normal add-on update checks.
+This private-source trial is not listed on addons.thunderbird.net. The public
+XPI contains readable add-on code.
 The MCP server is a separate Node process. It does not update when Thunderbird
 updates an add-on.
 
 `scripts/launch.mjs` is the stable MCP entry point. Its updater is **off by
 default**. After the first public signed release has been verified, set
 `DRAFTSAFE_AUTO_UPDATE=1`. The launcher then uses the repository's pinned
-[public key](updates/public-key.txt) and GitHub's latest-release manifest URL.
+[public key](updates/public-key.txt) and the public distribution repository's
+stable signed manifest URL.
 `DRAFTSAFE_UPDATE_URL` and `DRAFTSAFE_UPDATE_PUBLIC_KEY` can override those
 defaults for an independently trusted feed.
 The updater checks in a separate process, verifies the signed metadata and
@@ -201,14 +204,14 @@ an unreviewed feed or key.
 Release preparation: run `npm run release:check` in a headless session with
 `THUNDERBIRD` pointing to a standalone binary. It runs tests, builds both
 artifacts, checks an isolated Thunderbird smoke report, and builds the MCP
-update bundle. `build:update` writes a reviewable JSON bundle and its SHA-256; it does
+update bundle and a Thunderbird update manifest. `build:update` writes a reviewable JSON bundle and its SHA-256; it does
 not sign, publish or install it. A release signer must sign the exact JSON
 object `{schema,version,bundleUrl,sha256}` in that property order with Ed25519
 and add a base64 `signature` field. `npm run sign:update` does this after the
-release operator supplies `DRAFTSAFE_RELEASE_BUNDLE_URL` and an Ed25519 PKCS#8
-DER private key via `DRAFTSAFE_RELEASE_PRIVATE_KEY`. Keep the private key only
-in a private secrets store and out of logs and the repository. Publishing the XPI to Thunderbird's add-on
-site and releasing the MCP bundle are separate release steps. The exact
+release operator supplies `DRAFTSAFE_RELEASE_BUNDLE_URL` and a private key
+file path via `DRAFTSAFE_RELEASE_KEY_FILE`. Keep the key only in
+`~/.config/secrets` and out of logs and the repository. The XPI and MCP bundle
+are published together in the public distribution repository. The exact
 publication procedure is in [release channels](docs/release-channels.md).
 
 ### Upgrade from the two-add-on release
