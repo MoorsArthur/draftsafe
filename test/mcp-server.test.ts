@@ -17,27 +17,33 @@ async function connect(bridge: BridgeCaller) {
 }
 
 const text = (r: any) => r.content[0].text as string;
+const data = (r: any) => JSON.parse(/<<<UNTRUSTED_MAIL_DATA [0-9a-f]{24}>>>\n([\s\S]*?)\n<<<END_UNTRUSTED_MAIL_DATA/.exec(text(r))![1]);
 
 describe("MCP server (mocked bridge)", () => {
-  it("exposes exactly the sixteen read, diagnosis, approval and compose tools with annotations", async () => {
+  it("exposes exactly the twenty-one read, diagnosis, approval and compose tools with annotations", async () => {
     const client = await connect({ call: vi.fn() });
     const { tools } = await client.listTools();
     expect(tools.map(t => t.name).sort()).toEqual([
       "check_connection",
+      "close_compose_for_review",
       "create_draft",
+      "find_recipients",
       "get_message",
       "get_thread",
       "list_accounts",
       "list_folders_detailed",
       "list_followups",
+      "list_open_composes_for_review",
       "mark_read",
       "open_compose_for_review",
+      "open_composes_for_review",
       "request_cleanup", "request_folder_changes", "request_trash", "request_unsubscribe",
       "search_messages",
       "set_followup",
       "set_tags",
+      "update_compose_for_review",
     ]);
-    const destructive = new Set(["request_cleanup", "request_trash", "request_folder_changes", "request_unsubscribe"]);
+    const destructive = new Set(["request_cleanup", "request_trash", "request_folder_changes", "request_unsubscribe", "close_compose_for_review"]);
     for (const t of tools) {
       expect(t.description).not.toMatch(/MCP cannot send, forward or permanently delete/);
       expect(t.annotations?.destructiveHint).toBe(destructive.has(t.name));
@@ -50,6 +56,94 @@ describe("MCP server (mocked bridge)", () => {
     expect(client.getInstructions()).toMatch(/permanently delete/);
     expect(client.getInstructions()).toMatch(/untrusted/i);
     expect(SERVER_VERSION).toBe(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
+  });
+
+  it("prepares ten distinct composers in one call without sending", async () => {
+    let nextTab = 100;
+    const call = vi.fn(async (route: string) => route === "compose.listForReview"
+      ? { composers: [], uncertain: false }
+      : { tabId: nextTab++, sent: false, attachments: [] });
+    const client = await connect({ call });
+    const messages = Array.from({ length: 10 }, (_, i) => ({
+      to: ["recipient@example.test"], subject: `Message ${i + 1}`, body: `Body ${i + 1}`,
+    }));
+    const result = data(await client.callTool({ name: "open_composes_for_review", arguments: { messages } }));
+    expect(result).toMatchObject({ status: "awaiting_user_send", sent: false });
+    expect(result.opened).toHaveLength(10);
+    expect(call).toHaveBeenCalledTimes(11);
+    expect(call).toHaveBeenNthCalledWith(1, "compose.listForReview");
+    expect(call).toHaveBeenNthCalledWith(2, "compose.openForReview", {
+      to: ["recipient@example.test"], subject: "Message 1", body: "Body 1", attachments: [],
+    });
+    expect(call).toHaveBeenNthCalledWith(3, "compose.openForReview", {
+      to: ["recipient@example.test"], subject: "Message 2", body: "Body 2", attachments: [], newWindow: true,
+    });
+    expect(call.mock.calls.every(([route]) => route !== "compose.sendMessage")).toBe(true);
+  });
+
+  it("maps recipient lookup to a read-only bridge route", async () => {
+    const call = vi.fn(async () => ({ candidates: [], contactsEnabled: false, ambiguous: false }));
+    const client = await connect({ call });
+    const result = data(await client.callTool({ name: "find_recipients", arguments: { query: "alex", limit: 5 } }));
+    expect(result.contactsEnabled).toBe(false);
+    expect(call).toHaveBeenCalledWith("recipients.find", { query: "alex", limit: 5 });
+  });
+
+  it("uses newWindow for a pre-existing composer and forwards message attachments", async () => {
+    let nextTab = 200;
+    const call = vi.fn(async (route: string) => route === "compose.listForReview"
+      ? { composers: [{ tabId: 5 }], uncertain: false }
+      : { tabId: nextTab++, sent: false, attachments: [] });
+    const client = await connect({ call });
+    const result = data(await client.callTool({ name: "open_composes_for_review", arguments: { messages: [
+      { to: ["a@example.test"], subject: "A", body: "A", attachments: [{ source: "message", message_id: 42, part_name: "1.2" }] },
+      { reply_to_message_id: 7, body: "Reply" },
+    ] } }));
+    expect(result.opened).toHaveLength(2);
+    expect(call).toHaveBeenNthCalledWith(2, "compose.openForReview", {
+      to: ["a@example.test"], subject: "A", body: "A", attachments: [{ messageId: 42, partName: "1.2" }], newWindow: true,
+    });
+    expect(call).toHaveBeenNthCalledWith(3, "compose.openForReview", {
+      replyToMessageId: 7, body: "Reply", attachments: [], newWindow: true,
+    });
+  });
+
+  it("reports a partial batch and never retries an uncertain open", async () => {
+    let opens = 0;
+    const call = vi.fn(async (route: string) => {
+      if (route === "compose.listForReview") return { composers: [], uncertain: false };
+      if (++opens === 2) throw new BridgeError("raw Thunderbird content", "compose_unknown");
+      return { tabId: 300, sent: false, attachments: [] };
+    });
+    const client = await connect({ call });
+    const result = data(await client.callTool({ name: "open_composes_for_review", arguments: { messages: [
+      { to: ["a@example.test"], subject: "A", body: "A" },
+      { to: ["b@example.test"], subject: "B", body: "B" },
+      { to: ["c@example.test"], subject: "C", body: "C" },
+    ] } }));
+    expect(result).toMatchObject({ status: "partial", sent: false, failedMessage: 2,
+      opened: [{ message: 1, tabId: 300 }], error: expect.stringContaining("compose_unknown") });
+    expect(JSON.stringify(result)).not.toContain("raw Thunderbird content");
+    expect(call).toHaveBeenCalledTimes(3);
+  });
+
+  it("gates an old add-on and validates every message before opening any composer", async () => {
+    const call = vi.fn(async () => { throw new BridgeError("Update the add-on.", "update_required"); });
+    const client = await connect({ call });
+    const messages = [
+      { to: ["a@example.test"], subject: "A", body: "A" },
+      { to: ["b@example.test"], subject: "B", body: "B" },
+    ];
+    const old = await client.callTool({ name: "open_composes_for_review", arguments: { messages } });
+    expect(old.isError).toBe(true);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call).toHaveBeenCalledWith("compose.listForReview");
+    call.mockClear();
+    const invalid = await client.callTool({ name: "open_composes_for_review", arguments: {
+      messages: [messages[0], { ...messages[1], send: true }],
+    } });
+    expect(invalid.isError).toBe(true);
+    expect(call).not.toHaveBeenCalled();
   });
 
   it("maps snake_case arguments to bridge routes and wraps mail content as untrusted", async () => {
@@ -166,6 +260,46 @@ describe("bridge HTTP client (mocked fetch)", () => {
   const conn = (port: number, token = TOKEN) => ({ port, token, path: "/x" });
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
+  it("checks protocol once per Thunderbird token and accepts the installed 0.6 bridge", async () => {
+    const fetchImpl = vi.fn(async (url: string) => json(200, { ok: true,
+      result: url.endsWith("/health") ? { status: "ok", version: "0.6.0" } : { id: 1 } }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    await c.call("messages.get", { messageId: 1 });
+    await c.call("messages.get", { messageId: 1 });
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      "http://127.0.0.1:1/v1/health",
+      "http://127.0.0.1:1/v1/messages.get",
+      "http://127.0.0.1:1/v1/messages.get",
+    ]);
+  });
+
+  it("reports a required add-on update for new compose discovery on the 0.6 bridge", async () => {
+    const fetchImpl = vi.fn(async () => json(200, { ok: true,
+      result: { status: "ok", version: "0.6.0" } }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    await expect(c.call("compose.listForReview")).rejects.toMatchObject({ code: "update_required" });
+    await expect(c.call("compose.updateForReview", { body: "edit" })).rejects.toMatchObject({ code: "update_required" });
+    await expect(c.call("compose.closeForReview")).rejects.toMatchObject({ code: "update_required" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires the 0.8 add-on for fast search and recipient lookup", async () => {
+    const fetchImpl = vi.fn(async () => json(200, { ok: true,
+      result: { status: "ok", version: "0.7.0", protocol: 1 } }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    await expect(c.call("recipients.find", { query: "alex" })).rejects.toMatchObject({ code: "update_required" });
+    await expect(c.call("messages.search", { subject: "Alex", fast: true })).rejects.toMatchObject({ code: "update_required" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses an incompatible bridge before sending a mailbox request", async () => {
+    const fetchImpl = vi.fn(async () => json(200, { ok: true,
+      result: { status: "ok", version: "0.8.0", protocol: 2 } }));
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    await expect(c.call("messages.get", { messageId: 1 })).rejects.toMatchObject({ code: "update_required" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("acknowledges the request, then polls planning and pending status over separate HTTP calls", async () => {
     const requestId = "a".repeat(24);
     const replies = [
@@ -173,7 +307,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
       { status: "pending" }, { status: "done", outcome: { status: "denied" } },
     ];
     const fetchImpl = vi.fn(async () => json(200, { ok: true, result: replies.shift() }));
-    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl, verifyProtocol: false });
     expect(await c.call("requests.unsubscribe", { items: [] })).toEqual({ status: "denied" });
     expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
       "http://127.0.0.1:1/v1/requests.unsubscribe",
@@ -190,14 +324,14 @@ describe("bridge HTTP client (mocked fetch)", () => {
       .mockRejectedValueOnce(reset)
       .mockResolvedValueOnce(json(200, { ok: true, result: { status: "planning" } }))
       .mockResolvedValueOnce(json(200, { ok: true, result: { status: "done", outcome: { status: "denied" } } }));
-    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl, verifyProtocol: false });
     expect(await c.call("requests.unsubscribe", { items: [] })).toEqual({ status: "denied" });
     expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 
   it("POSTs JSON to 127.0.0.1 with the bearer token and no Origin", async () => {
     const fetchImpl = vi.fn(async () => json(200, { ok: true, result: { a: 1 } }));
-    const c = new BridgeClient({ loadConnection: async () => conn(5555), fetchImpl });
+    const c = new BridgeClient({ loadConnection: async () => conn(5555), fetchImpl, verifyProtocol: false });
     expect(await c.call("messages.get", { messageId: 1 })).toEqual({ a: 1 });
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://127.0.0.1:5555/v1/messages.get");
@@ -212,7 +346,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
       .fn()
       .mockResolvedValueOnce(json(401, { ok: false, error: { code: "unauthorized" } }))
       .mockResolvedValueOnce(json(200, { ok: true, result: "fresh" }));
-    const c = new BridgeClient({ loadConnection: load, fetchImpl });
+    const c = new BridgeClient({ loadConnection: load, fetchImpl, verifyProtocol: false });
     expect(await c.call("health")).toBe("fresh");
     expect(load).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[1][0]).toBe("http://127.0.0.1:2000/v1/health");
@@ -221,7 +355,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
   it("uses a new connection record on the next call after Thunderbird restarts", async () => {
     const load = vi.fn().mockResolvedValueOnce(conn(1000, "o".repeat(43))).mockResolvedValueOnce(conn(2000));
     const fetchImpl = vi.fn(async (url: string) => json(200, { ok: true, result: url }));
-    const c = new BridgeClient({ loadConnection: load, fetchImpl });
+    const c = new BridgeClient({ loadConnection: load, fetchImpl, verifyProtocol: false });
     expect(await c.call("health")).toContain(":1000/");
     expect(await c.call("health")).toContain(":2000/");
     expect(load).toHaveBeenCalledTimes(2);
@@ -230,7 +364,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
   it("reports a stalled read as a timeout even when fetch wraps it in TypeError", async () => {
     const stalled = Object.assign(new TypeError("fetch failed"), { cause: { code: "UND_ERR_HEADERS_TIMEOUT" } });
     const fetchImpl = vi.fn().mockRejectedValue(stalled);
-    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl, verifyProtocol: false });
     await expect(c.call("messages.search", { query: "Kioz", dateFrom: "2026-09-27", limit: 10 }))
       .rejects.toMatchObject({ code: "read_timeout" });
   });
@@ -238,7 +372,7 @@ describe("bridge HTTP client (mocked fetch)", () => {
   it("reports a rejected freshly re-read connection as stale", async () => {
     const load = vi.fn().mockResolvedValueOnce(conn(1)).mockResolvedValueOnce(conn(2));
     const fetchImpl = vi.fn(async () => json(401, { ok: false, error: { code: "unauthorized" } }));
-    await expect(new BridgeClient({ loadConnection: load, fetchImpl }).call("health"))
+    await expect(new BridgeClient({ loadConnection: load, fetchImpl, verifyProtocol: false }).call("health"))
       .rejects.toMatchObject({ code: "stale_connection" });
     expect(load).toHaveBeenCalledTimes(2);
   });
@@ -248,21 +382,21 @@ describe("bridge HTTP client (mocked fetch)", () => {
     const reset = Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } });
 
     const f1 = vi.fn().mockRejectedValueOnce(refused).mockResolvedValueOnce(json(200, { ok: true, result: 1 }));
-    expect(await new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f1 }).call("health")).toBe(1);
+    expect(await new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f1, verifyProtocol: false }).call("health")).toBe(1);
 
     const f2 = vi.fn().mockRejectedValue(reset);
-    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f2 }).call("drafts.create")).rejects.toMatchObject({ code: "delivery_unknown" });
+    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f2, verifyProtocol: false }).call("drafts.create")).rejects.toMatchObject({ code: "delivery_unknown" });
     expect(f2).toHaveBeenCalledTimes(1);
 
     const f3 = vi.fn().mockRejectedValue(reset);
-    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f3 }).call("compose.openForReview", { body: "x" }))
+    await expect(new BridgeClient({ loadConnection: async () => conn(1), fetchImpl: f3, verifyProtocol: false }).call("compose.openForReview", { body: "x" }))
       .rejects.toMatchObject({ code: "compose_unknown" });
     expect(f3).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces bridge error codes", async () => {
     const fetchImpl = vi.fn(async () => json(400, { ok: false, error: { code: "invalid_params", message: "bad" } }));
-    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl });
+    const c = new BridgeClient({ loadConnection: async () => conn(1), fetchImpl, verifyProtocol: false });
     await expect(c.call("messages.get")).rejects.toMatchObject({ code: "invalid_params", status: 400, message: "bad" });
   });
 });

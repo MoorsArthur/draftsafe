@@ -2,12 +2,12 @@
   "manifest_version": 2,
   "name": "Draftsafe",
   "short_name": "Draftsafe",
-  "version": "0.5.0",
+  "version": "0.8.0",
   "description": "Read Thunderbird mail through MCP and review mailbox changes. Includes Snooze, Send later and Follow-ups.",
   "author": "Arthur Moors",
   "browser_specific_settings": {
     "gecko": {
-      "id": "draftsafe-tools@draftsafe.dev",
+      "id": "draftsafe-tools@armain.be",
       "strict_min_version": "140.0"
     }
   },
@@ -37,6 +37,7 @@
     "storage"
   ],
   "optional_permissions": [
+    "addressBooks",
     "https://*/*"
   ],
   "experiment_apis": {

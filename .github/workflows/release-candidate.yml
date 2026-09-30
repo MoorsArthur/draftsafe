@@ -1,0 +1,57 @@
+name: Release candidate
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Check version tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci
+      - name: Install isolated Thunderbird test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb
+          mkdir -p .release-tb
+          curl --fail --location --retry 3 --max-time 180 \
+            'https://download.mozilla.org/?product=thunderbird-latest&os=linux64&lang=en-US' \
+            --output .release-tb/thunderbird.tar
+          tar -xf .release-tb/thunderbird.tar -C .release-tb
+          test -x .release-tb/thunderbird/thunderbird
+      - name: Test, build and run isolated Thunderbird smoke
+        run: npm run release:check
+        env:
+          THUNDERBIRD: ${{ github.workspace }}/.release-tb/thunderbird/thunderbird
+      - name: Record artifact hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum draftsafe.xpi draftsafe-mcp-*.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: draftsafe-${{ github.ref_name }}-candidate
+          path: |
+            dist/draftsafe.xpi
+            dist/draftsafe-mcp-*.json
+            dist/SHA256SUMS
+            dist/smoke-report.json
+          if-no-files-found: error

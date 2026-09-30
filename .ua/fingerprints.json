@@ -1,0 +1,5860 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "06acba71a305052fd53b322092d70e79bb2f718a",
+  "generatedAt": "2026-09-30T22:27:36.054Z",
+  "files": {
+    ".github/workflows/ci.yml": {
+      "filePath": ".github/workflows/ci.yml",
+      "contentHash": "7f002ac99fd8a6d97a9ea28b3ac809ba17cddf7429914a2eeba35b727c0d9cdb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 23,
+      "hasStructuralAnalysis": false
+    },
+    ".github/workflows/release-candidate.yml": {
+      "filePath": ".github/workflows/release-candidate.yml",
+      "contentHash": "7d57ad1b656e712096226ed5bb8518d01a661c5e07dbcf94188d7a17886dc2f5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "d7624c7018a553df96a8e50a19df86b96fcfa4bcfe147c10562b337031ce0fe7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    "CHANGELOG.md": {
+      "filePath": "CHANGELOG.md",
+      "contentHash": "2979de3c182b7faf7c4be16118004ed0f342a295c29d2a3c38b9b97716555193",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 176,
+      "hasStructuralAnalysis": false
+    },
+    "CONTRIBUTING.md": {
+      "filePath": "CONTRIBUTING.md",
+      "contentHash": "13668ebd0908a9f2a99c791be3edbe8e04921c0a0190f3ec495f11d18712a79a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 42,
+      "hasStructuralAnalysis": false
+    },
+    "PRIVACY.md": {
+      "filePath": "PRIVACY.md",
+      "contentHash": "80a3a9aa475333eeea07c53d2a7eb62ab40bf93337fc8b27064c5c20c658f9ba",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": false
+    },
+    "PROJECT.md": {
+      "filePath": "PROJECT.md",
+      "contentHash": "68d83d9d889ec2fd23598087b433225ffe6a0810872ca2166916e6c2f9cc0654",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": false
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "31be4c2d07a6cf44505554eeace010770d074315b9407e34b488279527e0251f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 435,
+      "hasStructuralAnalysis": false
+    },
+    "SECURITY.md": {
+      "filePath": "SECURITY.md",
+      "contentHash": "1364f53c3ad672ba1d2cde7178f923292d2c95ff68e2686682d056f8dfbc6970",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 209,
+      "hasStructuralAnalysis": false
+    },
+    "addons/app/background.html": {
+      "filePath": "addons/app/background.html",
+      "contentHash": "ac2edea144045e45c5bb7dbaf81c6752051227e228cbf57c8815cac9b1c28fa8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 8,
+      "hasStructuralAnalysis": false
+    },
+    "addons/app/manifest.json": {
+      "filePath": "addons/app/manifest.json",
+      "contentHash": "54af09e1c32f7170b8eee5fc1f838025b9700216ad9aca7ec6da0ad6099a28a5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 69,
+      "hasStructuralAnalysis": false
+    },
+    "addons/app/src/background.js": {
+      "filePath": "addons/app/src/background.js",
+      "contentHash": "d6c10a339001713c085ca3f8217d23c4668baebeff536c62375af8d1ab983a47",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../tools/src/background.js",
+          "specifiers": [
+            "approvals",
+            "userFeaturesReady"
+          ]
+        },
+        {
+          "source": "../../bridge/src/background.js",
+          "specifiers": [
+            "configureBridge"
+          ]
+        },
+        {
+          "source": "./relay.js",
+          "specifiers": [
+            "createLocalRelay"
+          ]
+        }
+      ],
+      "exports": [
+        "ready"
+      ],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "addons/app/src/relay.js": {
+      "filePath": "addons/app/src/relay.js",
+      "contentHash": "92592c1a556e01b0c3a588b2d0afdd00fcd6ed4bb58e7b99768603e411cbdf25",
+      "functions": [
+        {
+          "name": "createLocalRelay",
+          "params": [
+            "approvals"
+          ],
+          "exported": true,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../shared/lib/validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "createLocalRelay"
+      ],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/api/framing.js": {
+      "filePath": "addons/bridge/api/framing.js",
+      "contentHash": "699546a7be4252006308cd6787f5ab9acec026f9054eb6ab049f7a3877c436e1",
+      "functions": [
+        {
+          "name": "parseHead",
+          "params": [
+            "head",
+            "limits"
+          ],
+          "exported": false,
+          "lineCount": 48
+        },
+        {
+          "name": "frameRequest",
+          "params": [
+            "buf",
+            "limits"
+          ],
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "utf8Encode",
+          "params": [
+            "str"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildResponse",
+          "params": [
+            "status",
+            "bodyText"
+          ],
+          "exported": false,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 202,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/api/implementation.js": {
+      "filePath": "addons/bridge/api/implementation.js",
+      "contentHash": "1adf1df4791a7562464c6b8a8a3945a099608042ef195d0a2e3d76dfc5136cb9",
+      "functions": [
+        {
+          "name": "connectionDir",
+          "params": [],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "dsRemoveConnectionFile",
+          "params": [],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "dsRemoveConnectionFileSync",
+          "params": [],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "dsRandomName",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "dsIsSymlink",
+          "params": [
+            "path"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "dsLoadFraming",
+          "params": [
+            "extension"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "dsExplain",
+          "params": [
+            "step",
+            "fn"
+          ],
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [
+        {
+          "name": "BridgeConnection",
+          "methods": [
+            "constructor",
+            "start",
+            "onData",
+            "reply",
+            "replyRaw",
+            "close"
+          ],
+          "properties": [],
+          "exported": false,
+          "lineCount": 142
+        },
+        {
+          "name": "BridgeServer",
+          "methods": [
+            "constructor",
+            "start",
+            "dispatch",
+            "stop"
+          ],
+          "properties": [],
+          "exported": false,
+          "lineCount": 66
+        }
+      ],
+      "imports": [],
+      "exports": [],
+      "totalLines": 481,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/api/schema.json": {
+      "filePath": "addons/bridge/api/schema.json",
+      "contentHash": "4e330341c14e4e0a6b0c1f58582f062b8f64ca2c2dfeb7b3d824d6d208e85b48",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 55,
+      "hasStructuralAnalysis": false
+    },
+    "addons/bridge/src/background.js": {
+      "filePath": "addons/bridge/src/background.js",
+      "contentHash": "6099986ef689a43f596c0bd48aa5ad7a12016828f92ebfbcf04b67c8ee9452a4",
+      "functions": [
+        {
+          "name": "configureBridge",
+          "params": [
+            "relay"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "startBridge",
+          "params": [],
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./bridge/ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "./bridge/routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "./bridge/server.js",
+          "specifiers": [
+            "createRequestHandler"
+          ]
+        },
+        {
+          "source": "./bridge/security.js",
+          "specifiers": [
+            "generateToken"
+          ]
+        }
+      ],
+      "exports": [
+        "configureBridge",
+        "startBridge"
+      ],
+      "totalLines": 45,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/src/bridge/ops.js": {
+      "filePath": "addons/bridge/src/bridge/ops.js",
+      "contentHash": "f0e3cfcac74f18f4262ebd16d786740427a94f5dc4d94c6057f1ed084b8e57db",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/src/bridge/routes.js": {
+      "filePath": "addons/bridge/src/bridge/routes.js",
+      "contentHash": "07109abd9dd25fc6ab1ead59997cb8b590c0004373a900db7a9eca27a9b5acaf",
+      "functions": [
+        {
+          "name": "createRoutes",
+          "params": [],
+          "exported": true,
+          "lineCount": 27
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/mail-routes.js",
+          "specifiers": [
+            "baseRoutes",
+            "BASE_NAMES"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/approval-schema.js",
+          "specifiers": [
+            "VALIDATORS"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/state-request.js",
+          "specifiers": [
+            "STATE_ROUTES",
+            "validateStateRequest"
+          ]
+        },
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "ROUTE_NAMES",
+        "createRoutes"
+      ],
+      "totalLines": 35,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/src/bridge/security.js": {
+      "filePath": "addons/bridge/src/bridge/security.js",
+      "contentHash": "cd435b52d0e0dbfc50f3b5c6a8cd480e1595e3488d9470025952ba6c1b9c5a36",
+      "functions": [
+        {
+          "name": "generateToken",
+          "params": [],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "timingSafeEqual",
+          "params": [
+            "given",
+            "expected"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "allowedHosts",
+          "params": [
+            "port"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "generateToken",
+        "timingSafeEqual",
+        "allowedHosts"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/src/bridge/server.js": {
+      "filePath": "addons/bridge/src/bridge/server.js",
+      "contentHash": "91d5619dbf9105691965e699435f1710346e524a4e35272f5c5789f45f91bb4b",
+      "functions": [
+        {
+          "name": "json",
+          "params": [
+            "status",
+            "payload"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "fail",
+          "params": [
+            "status",
+            "code",
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "decodeBody",
+          "params": [
+            "binary"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "createRequestHandler",
+          "params": [],
+          "exported": true,
+          "lineCount": 93
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./security.js",
+          "specifiers": [
+            "allowedHosts",
+            "timingSafeEqual"
+          ]
+        },
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError",
+            "createDeadline"
+          ]
+        }
+      ],
+      "exports": [
+        "MAX_IN_FLIGHT",
+        "MAX_SEARCH_IN_FLIGHT",
+        "MAX_HEALTH_IN_FLIGHT",
+        "MAX_RESPONSE_BYTES",
+        "HANDLER_BUDGET_MS",
+        "createRequestHandler"
+      ],
+      "totalLines": 159,
+      "hasStructuralAnalysis": true
+    },
+    "addons/bridge/src/bridge/validate.js": {
+      "filePath": "addons/bridge/src/bridge/validate.js",
+      "contentHash": "6b1cf36ed46c6fe5b5b2d6cf9a51ae717c054e231ea4d9ec40c7cf4a0ea43f56",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/approval-schema.js": {
+      "filePath": "addons/shared/lib/approval-schema.js",
+      "contentHash": "a5041571069dad9bd5af3bdbd45932fad25ab31895a7d37e345924a0c8750a6a",
+      "functions": [
+        {
+          "name": "bad",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "isPlainObject",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "onlyKeys",
+          "params": [
+            "obj",
+            "allowed",
+            "where"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "reason",
+          "params": [
+            "v",
+            "where"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "positiveInt",
+          "params": [
+            "v",
+            "where"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "isValidFolderName",
+          "params": [
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "folderName",
+          "params": [
+            "v",
+            "where"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "folderId",
+          "params": [
+            "v",
+            "where"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parseFolderPath",
+          "params": [
+            "v"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "validateCleanup",
+          "params": [
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "validateUnsubscribe",
+          "params": [
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "validateFolderChanges",
+          "params": [
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 48
+        }
+      ],
+      "classes": [
+        {
+          "name": "ApprovalInputError",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [],
+      "exports": [
+        "APPROVAL_LIMITS",
+        "CLEANUP_ACTIONS",
+        "FOLDER_ACTIONS",
+        "APPROVAL_KINDS",
+        "OUTCOME_STATUSES",
+        "UNSUBSCRIBE_RESULTS",
+        "FOLDER_RESULTS",
+        "FOLDER_NAME_RE",
+        "ApprovalInputError",
+        "isValidFolderName",
+        "parseFolderPath",
+        "validateCleanup",
+        "validateUnsubscribe",
+        "validateFolderChanges",
+        "VALIDATORS"
+      ],
+      "totalLines": 285,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/attachment-stage.js": {
+      "filePath": "addons/shared/lib/attachment-stage.js",
+      "contentHash": "c916edfbf164c618251e1619abafd45c06354a87e502dbe34f78ef3f33f79e89",
+      "functions": [
+        {
+          "name": "createAttachmentStage",
+          "params": [],
+          "exported": true,
+          "lineCount": 57
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "MAX_ATTACHMENT_FILES",
+        "MAX_ATTACHMENT_BYTES",
+        "MAX_ATTACHMENT_TOTAL",
+        "MAX_CHUNK_BYTES",
+        "createAttachmentStage"
+      ],
+      "totalLines": 70,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/compose-body.js": {
+      "filePath": "addons/shared/lib/compose-body.js",
+      "contentHash": "a0515f5a67366bfcab0fc017a39a2419ebb5c812be09aba68c6344346f2ebe62",
+      "functions": [
+        {
+          "name": "htmlFromPlainText",
+          "params": [
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "prependHtml",
+          "params": [
+            "existing",
+            "insertion"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "agentBodyDetails",
+          "params": [
+            "native",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "insertAgentText",
+          "params": [
+            "api",
+            "tabId",
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "identityForReply",
+          "params": [
+            "api",
+            "header"
+          ],
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "htmlFromPlainText",
+        "agentBodyDetails",
+        "insertAgentText",
+        "identityForReply"
+      ],
+      "totalLines": 47,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/compose-review.js": {
+      "filePath": "addons/shared/lib/compose-review.js",
+      "contentHash": "33b617899b8d0a97d4f3b405dfeecbcd4d8d812f38e21d07e62b11a0e8c575e9",
+      "functions": [
+        {
+          "name": "summary",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "snapshot",
+          "params": [
+            "d",
+            "a"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "result",
+          "params": [
+            "tabId",
+            "attachments"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "targetKey",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createComposeReview",
+          "params": [],
+          "exported": true,
+          "lineCount": 197
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./compose-body.js",
+          "specifiers": [
+            "agentBodyDetails",
+            "identityForReply",
+            "insertAgentText"
+          ]
+        },
+        {
+          "source": "./attachment-stage.js",
+          "specifiers": [
+            "MAX_ATTACHMENT_BYTES",
+            "MAX_ATTACHMENT_FILES",
+            "MAX_ATTACHMENT_TOTAL"
+          ]
+        },
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "createComposeReview"
+      ],
+      "totalLines": 217,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/constants.js": {
+      "filePath": "addons/shared/lib/constants.js",
+      "contentHash": "a4f16245302bc3f8b921a1b442a6ea3e8ebabbc3c5344e289eb4511b4ec21bd7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "FOLLOWUP_TAG_KEY",
+        "FOLLOWUP_TAG_LABEL",
+        "FOLLOWUP_TAG_COLOR"
+      ],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/followup-tag.js": {
+      "filePath": "addons/shared/lib/followup-tag.js",
+      "contentHash": "3cbd263c01d4c9c0d8546e2e850019b9e63a7cde6133ec5f06bb502a2b9827ea",
+      "functions": [
+        {
+          "name": "createFollowupTag",
+          "params": [],
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./constants.js",
+          "specifiers": [
+            "FOLLOWUP_TAG_COLOR",
+            "FOLLOWUP_TAG_KEY",
+            "FOLLOWUP_TAG_LABEL"
+          ]
+        },
+        {
+          "source": "./mail.js",
+          "specifiers": [
+            "abortList",
+            "collect"
+          ]
+        }
+      ],
+      "exports": [
+        "createFollowupTag"
+      ],
+      "totalLines": 62,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/mail-ops.js": {
+      "filePath": "addons/shared/lib/mail-ops.js",
+      "contentHash": "706f0dd8b64552dbfd4554cf2b8df648e318b4f4d503ad33ac91b7e045fc52fc",
+      "functions": [
+        {
+          "name": "randomId",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "createMailOps",
+          "params": [],
+          "exported": true,
+          "lineCount": 439
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./constants.js",
+          "specifiers": [
+            "FOLLOWUP_TAG_KEY"
+          ]
+        },
+        {
+          "source": "./compose-body.js",
+          "specifiers": [
+            "identityForReply",
+            "insertAgentText"
+          ]
+        },
+        {
+          "source": "./compose-review.js",
+          "specifiers": [
+            "createComposeReview"
+          ]
+        },
+        {
+          "source": "./attachment-stage.js",
+          "specifiers": [
+            "createAttachmentStage"
+          ]
+        },
+        {
+          "source": "./followup-tag.js",
+          "specifiers": [
+            "createFollowupTag"
+          ]
+        },
+        {
+          "source": "./recipient-lookup.js",
+          "specifiers": [
+            "findRecipients"
+          ]
+        },
+        {
+          "source": "./mail.js",
+          "specifiers": [
+            "abortList",
+            "queryAll",
+            "summarizeFolder",
+            "summarizeHeader"
+          ]
+        },
+        {
+          "source": "./text.js",
+          "specifiers": [
+            "normalizeSubject",
+            "parseMessageIds",
+            "stripHtml",
+            "truncate"
+          ]
+        },
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError",
+            "NO_DEADLINE"
+          ]
+        }
+      ],
+      "exports": [
+        "createMailOps"
+      ],
+      "totalLines": 473,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/mail-routes.js": {
+      "filePath": "addons/shared/lib/mail-routes.js",
+      "contentHash": "a412b9dd0bcaf768dcfba776b2b254e7a9974e16e525ee9628b646b5bf95c1ac",
+      "functions": [
+        {
+          "name": "recipients",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "subject",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "attachmentSpecs",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "createRoutes",
+          "params": [],
+          "exported": true,
+          "lineCount": 176
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./validate.js",
+          "specifiers": [
+            "BridgeError",
+            "NO_DEADLINE",
+            "messageId",
+            "messageIds",
+            "onlyKeys",
+            "optBool",
+            "optDate",
+            "optInt",
+            "optString",
+            "optStringList",
+            "reqString"
+          ]
+        }
+      ],
+      "exports": [
+        "ROUTE_NAMES",
+        "createRoutes"
+      ],
+      "totalLines": 252,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/mail.js": {
+      "filePath": "addons/shared/lib/mail.js",
+      "contentHash": "baf9f67e5b81fed3087782e21019f5cde04fc839ad1830377debef0db0b4e07e",
+      "functions": [
+        {
+          "name": "collect",
+          "params": [
+            "api",
+            "firstPage"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "abortList",
+          "params": [
+            "api",
+            "listId"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "queryAll",
+          "params": [
+            "api",
+            "queryInfo"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "accountIdOf",
+          "params": [
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "capString",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "capList",
+          "params": [
+            "list"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "summarizeFolder",
+          "params": [
+            "folder"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "summarizeHeader",
+          "params": [
+            "m"
+          ],
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "SUMMARY_LIMITS",
+        "collect",
+        "abortList",
+        "queryAll",
+        "accountIdOf",
+        "summarizeFolder",
+        "summarizeHeader"
+      ],
+      "totalLines": 101,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/recipient-lookup.js": {
+      "filePath": "addons/shared/lib/recipient-lookup.js",
+      "contentHash": "099b51c5be036cd6fc55da936e6bcee835772c789d75871a872f538d799de854",
+      "functions": [
+        {
+          "name": "mailbox",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "findRecipients",
+          "params": [],
+          "exported": true,
+          "lineCount": 77
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./mail.js",
+          "specifiers": [
+            "abortList"
+          ]
+        }
+      ],
+      "exports": [
+        "findRecipients"
+      ],
+      "totalLines": 98,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/state-request.js": {
+      "filePath": "addons/shared/lib/state-request.js",
+      "contentHash": "9b95ee5908ac932f8101a139188c538a1be19250f51f46868ddaa586784e24ba",
+      "functions": [
+        {
+          "name": "validateStateRequest",
+          "params": [
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./mail-routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "./approval-schema.js",
+          "specifiers": [
+            "ApprovalInputError"
+          ]
+        }
+      ],
+      "exports": [
+        "STATE_ROUTES",
+        "validateStateRequest"
+      ],
+      "totalLines": 15,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/text.js": {
+      "filePath": "addons/shared/lib/text.js",
+      "contentHash": "020b2ff05094384793b2d06f0e4ec5ebe6c9ae0e00b7e7ab97531bc78542dbef",
+      "functions": [
+        {
+          "name": "stripHtml",
+          "params": [
+            "html"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "quoteForReply",
+          "params": [
+            "newText",
+            "originalText",
+            "attribution"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "truncate",
+          "params": [
+            "text",
+            "max"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "parseMessageIds",
+          "params": [
+            "values"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "normalizeSubject",
+          "params": [
+            "subject"
+          ],
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "stripHtml",
+        "quoteForReply",
+        "truncate",
+        "parseMessageIds",
+        "normalizeSubject"
+      ],
+      "totalLines": 78,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/time.js": {
+      "filePath": "addons/shared/lib/time.js",
+      "contentHash": "210241a474059ee85ee3091d254aeda24ec3e6624ceed2c8791c8066219121df",
+      "functions": [
+        {
+          "name": "atLocal",
+          "params": [
+            "base",
+            "dayOffset",
+            "hour"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "laterToday",
+          "params": [],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "tomorrowMorning",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "nextMondayMorning",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "inOneHour",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "snoozePresets",
+          "params": [],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "sendLaterPresets",
+          "params": [],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "presetById",
+          "params": [
+            "presets",
+            "id"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "parseWhen",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "toLocalInputValue",
+          "params": [
+            "date"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "formatWhen",
+          "params": [
+            "date"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "laterToday",
+        "tomorrowMorning",
+        "nextMondayMorning",
+        "inOneHour",
+        "snoozePresets",
+        "sendLaterPresets",
+        "presetById",
+        "parseWhen",
+        "toLocalInputValue",
+        "formatWhen"
+      ],
+      "totalLines": 109,
+      "hasStructuralAnalysis": true
+    },
+    "addons/shared/lib/validate.js": {
+      "filePath": "addons/shared/lib/validate.js",
+      "contentHash": "1b17940141ef6bdc734de76db2d6f04233e25fca2ce0dadabc9f4a2b99c596b1",
+      "functions": [
+        {
+          "name": "bad",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "onlyKeys",
+          "params": [
+            "params",
+            "allowed"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "optString",
+          "params": [
+            "params",
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "reqString",
+          "params": [
+            "params",
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "optBool",
+          "params": [
+            "params",
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "optInt",
+          "params": [
+            "params",
+            "key",
+            "min",
+            "max",
+            "dflt"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "messageId",
+          "params": [
+            "v"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "messageIds",
+          "params": [
+            "params"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "optDate",
+          "params": [
+            "params",
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "optStringList",
+          "params": [
+            "params",
+            "key",
+            "maxItems",
+            "maxLen"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "createDeadline",
+          "params": [
+            "budgetMs"
+          ],
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [
+        {
+          "name": "BridgeError",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "./time.js",
+          "specifiers": [
+            "parseWhen"
+          ]
+        }
+      ],
+      "exports": [
+        "BridgeError",
+        "onlyKeys",
+        "optString",
+        "reqString",
+        "optBool",
+        "optInt",
+        "messageId",
+        "messageIds",
+        "optDate",
+        "optStringList",
+        "createDeadline",
+        "NO_DEADLINE"
+      ],
+      "totalLines": 132,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/cleanup.js": {
+      "filePath": "addons/tools/src/approval/cleanup.js",
+      "contentHash": "6c26ca63b825a039a270098af818fd62b674b530963abefa7588ccf7de7e6bbd",
+      "functions": [
+        {
+          "name": "moveDestinationProblem",
+          "params": [
+            "tree",
+            "folder"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "planDestination",
+          "params": [
+            "api",
+            "batch",
+            "accountId"
+          ],
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "planCleanup",
+          "params": [
+            "api",
+            "input"
+          ],
+          "exported": true,
+          "lineCount": 146
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/approval-schema.js",
+          "specifiers": [
+            "APPROVAL_LIMITS",
+            "isValidFolderName"
+          ]
+        },
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "chunks",
+            "decisionList",
+            "DecisionError",
+            "groupBySender",
+            "snapshotMessage",
+            "stillSame"
+          ]
+        },
+        {
+          "source": "./tree.js",
+          "specifiers": [
+            "FolderRuleError",
+            "childNamed",
+            "creatableParentProblem",
+            "loadTree",
+            "pathLabel",
+            "protectionOf",
+            "resolvePath",
+            "specialFolderOf"
+          ]
+        }
+      ],
+      "exports": [
+        "planCleanup"
+      ],
+      "totalLines": 235,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/common.js": {
+      "filePath": "addons/tools/src/approval/common.js",
+      "contentHash": "9431be6fd55e8c07441c0743f62daf91d0c458b1aa6db31db7c0bf4fcb614170",
+      "functions": [
+        {
+          "name": "senderAddress",
+          "params": [
+            "author"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "iso",
+          "params": [
+            "d"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "snapshotMessage",
+          "params": [
+            "api",
+            "id"
+          ],
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "stillSame",
+          "params": [
+            "api",
+            "snap"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "groupBySender",
+          "params": [
+            "snaps"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "chunks",
+          "params": [
+            "list"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "decisionList",
+          "params": [
+            "decision",
+            "key",
+            "length"
+          ],
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [
+        {
+          "name": "DecisionError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "./tree.js",
+          "specifiers": [
+            "FolderRuleError"
+          ]
+        }
+      ],
+      "exports": [
+        "MOVE_CHUNK",
+        "senderAddress",
+        "iso",
+        "snapshotMessage",
+        "stillSame",
+        "groupBySender",
+        "chunks",
+        "DecisionError",
+        "decisionList"
+      ],
+      "totalLines": 94,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/folder-changes.js": {
+      "filePath": "addons/tools/src/approval/folder-changes.js",
+      "contentHash": "a92ab5e0f5dc8f9228a9f7d5993e76351d20fd87714deb02b98d347c4717724b",
+      "functions": [
+        {
+          "name": "folderById",
+          "params": [
+            "api",
+            "id"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "countOf",
+          "params": [
+            "api",
+            "folderId"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "sameName",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "planFolderChanges",
+          "params": [
+            "api",
+            "input"
+          ],
+          "exported": true,
+          "lineCount": 168
+        },
+        {
+          "name": "preview",
+          "params": [
+            "api",
+            "tree",
+            "changes"
+          ],
+          "exported": false,
+          "lineCount": 44
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/approval-schema.js",
+          "specifiers": [
+            "APPROVAL_LIMITS",
+            "isValidFolderName"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/mail.js",
+          "specifiers": [
+            "abortList",
+            "collect"
+          ]
+        },
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "chunks",
+            "decisionList",
+            "DecisionError",
+            "snapshotMessage",
+            "stillSame",
+            "groupBySender"
+          ]
+        },
+        {
+          "source": "./tree.js",
+          "specifiers": [
+            "FolderRuleError",
+            "childNamed",
+            "creatableParentProblem",
+            "freshFolder",
+            "hasChildren",
+            "loadTree",
+            "pathLabel",
+            "protectionOf",
+            "specialFolderOf"
+          ]
+        }
+      ],
+      "exports": [
+        "MERGE_MAX_MESSAGES",
+        "planFolderChanges"
+      ],
+      "totalLines": 272,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/manager.js": {
+      "filePath": "addons/tools/src/approval/manager.js",
+      "contentHash": "121bdd4d8c5efdcff8eb9b513ac5c2e341bb36d00e3370f174d169efbdf1938d",
+      "functions": [
+        {
+          "name": "token",
+          "params": [
+            "bytes"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "canonical",
+          "params": [
+            "v"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "sha256Text",
+          "params": [
+            "text"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "sameSecret",
+          "params": [
+            "given",
+            "expected"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "fail",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "summarize",
+          "params": [
+            "kind",
+            "view"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "reasonsOf",
+          "params": [
+            "kind",
+            "view"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "itemCount",
+          "params": [
+            "kind",
+            "input"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "createApprovals",
+          "params": [],
+          "exported": true,
+          "lineCount": 352
+        }
+      ],
+      "classes": [
+        {
+          "name": "PageError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../../shared/lib/approval-schema.js",
+          "specifiers": [
+            "APPROVAL_KINDS",
+            "ApprovalInputError",
+            "VALIDATORS"
+          ]
+        },
+        {
+          "source": "./state.js",
+          "specifiers": [
+            "planState"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/state-request.js",
+          "specifiers": [
+            "validateStateRequest"
+          ]
+        },
+        {
+          "source": "./cleanup.js",
+          "specifiers": [
+            "planCleanup"
+          ]
+        },
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "DecisionError"
+          ]
+        },
+        {
+          "source": "./folder-changes.js",
+          "specifiers": [
+            "planFolderChanges"
+          ]
+        },
+        {
+          "source": "./tree.js",
+          "specifiers": [
+            "FolderRuleError"
+          ]
+        },
+        {
+          "source": "./unsubscribe.js",
+          "specifiers": [
+            "planUnsubscribe"
+          ]
+        }
+      ],
+      "exports": [
+        "APPROVAL_PAGE",
+        "APPROVAL_TIMEOUT_MS",
+        "COOLDOWN_MS",
+        "MAX_REQUESTS_PER_HOUR",
+        "OUTCOME_TTL_MS",
+        "LOG_KEY",
+        "MAX_LOG_ENTRIES",
+        "TRUST_DURATION_MS",
+        "PageError",
+        "canonical",
+        "sha256Text",
+        "createApprovals"
+      ],
+      "totalLines": 442,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/state.js": {
+      "filePath": "addons/tools/src/approval/state.js",
+      "contentHash": "83513e49efc7fe15fba0a3f07950520d96faa2e583de04ddc2888cb938c23edd",
+      "functions": [
+        {
+          "name": "planState",
+          "params": [
+            "api",
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 28
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/state-request.js",
+          "specifiers": [
+            "validateStateRequest"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/mail-routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/mail-ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "decisionList",
+            "DecisionError",
+            "snapshotMessage",
+            "stillSame",
+            "groupBySender"
+          ]
+        }
+      ],
+      "exports": [
+        "planState"
+      ],
+      "totalLines": 35,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/tree.js": {
+      "filePath": "addons/tools/src/approval/tree.js",
+      "contentHash": "0465f47c8c4b3ba1f79b92fb1b8283edfbb78f2bfcc3938539dab6de98c9adcb",
+      "functions": [
+        {
+          "name": "uses",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "isWithin",
+          "params": [
+            "path",
+            "parentPath"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "loadTree",
+          "params": [
+            "api",
+            "accountId"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "protectionOf",
+          "params": [
+            "tree",
+            "folder"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "creatableParentProblem",
+          "params": [
+            "tree",
+            "parent"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "childNamed",
+          "params": [
+            "tree",
+            "parentId",
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "depthOf",
+          "params": [
+            "tree",
+            "folderId"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "hasChildren",
+          "params": [
+            "tree",
+            "folderId"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "resolvePath",
+          "params": [
+            "tree",
+            "segments"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "specialFolderOf",
+          "params": [
+            "api",
+            "accountId",
+            "use"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "freshFolder",
+          "params": [
+            "api",
+            "folderId"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "labelOf",
+          "params": [
+            "folder"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "pathLabel",
+          "params": [
+            "tree",
+            "folder"
+          ],
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [
+        {
+          "name": "FolderRuleError",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "../lib/constants.js",
+          "specifiers": [
+            "SNOOZE_FOLDER_NAME",
+            "UNSAFE_SPECIAL_USES"
+          ]
+        }
+      ],
+      "exports": [
+        "FolderRuleError",
+        "loadTree",
+        "protectionOf",
+        "creatableParentProblem",
+        "childNamed",
+        "depthOf",
+        "hasChildren",
+        "resolvePath",
+        "specialFolderOf",
+        "freshFolder",
+        "labelOf",
+        "pathLabel"
+      ],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/approval/unsubscribe.js": {
+      "filePath": "addons/tools/src/approval/unsubscribe.js",
+      "contentHash": "9271c3fad201c37547a760437b854cc02c2a1b3f0555748968a61b6f34fe81be",
+      "functions": [
+        {
+          "name": "headersOf",
+          "params": [
+            "api",
+            "id"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "within",
+          "params": [
+            "promise",
+            "ms"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "safeOneClickUrl",
+          "params": [
+            "raw"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "unsubscribeMethod",
+          "params": [
+            "headers"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "originPattern",
+          "params": [
+            "origin"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "searchFolders",
+          "params": [
+            "folders"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "resolveSender",
+          "params": [
+            "api",
+            "sender",
+            "folders",
+            "timeoutMs"
+          ],
+          "exported": false,
+          "lineCount": 39
+        },
+        {
+          "name": "resolveSenders",
+          "params": [
+            "api",
+            "senders",
+            "onProgress",
+            "timeoutMs"
+          ],
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "planUnsubscribe",
+          "params": [
+            "api",
+            "input"
+          ],
+          "exported": true,
+          "lineCount": 183
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/mail.js",
+          "specifiers": [
+            "abortList",
+            "queryAll"
+          ]
+        },
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "decisionList",
+            "DecisionError",
+            "groupBySender",
+            "senderAddress",
+            "snapshotMessage",
+            "stillSame"
+          ]
+        }
+      ],
+      "exports": [
+        "HEADER_TIMEOUT_MS",
+        "HEADER_CONCURRENCY",
+        "SENDER_TIMEOUT_MS",
+        "headersOf",
+        "safeOneClickUrl",
+        "unsubscribeMethod",
+        "originPattern",
+        "planUnsubscribe"
+      ],
+      "totalLines": 359,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/background.js": {
+      "filePath": "addons/tools/src/background.js",
+      "contentHash": "aea5f2418580d605c5612a9aafe7ab9eebc757a2b09e2954c4c5f94a28237410",
+      "functions": [
+        {
+          "name": "notify",
+          "params": [
+            "title",
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "updateBadge",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "tick",
+          "params": [],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "updateTrustMenu",
+          "params": [
+            "remaining"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "createMenus",
+          "params": [],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "openPicker",
+          "params": [
+            "mode",
+            "ids"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "presetList",
+          "params": [
+            "presets"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "whenFrom",
+          "params": [
+            "msg",
+            "presets"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "idList",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "oneId",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "keyOf",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../shared/lib/mail.js",
+          "specifiers": [
+            "collect"
+          ]
+        },
+        {
+          "source": "../../shared/lib/time.js",
+          "specifiers": [
+            "parseWhen",
+            "presetById",
+            "sendLaterPresets",
+            "snoozePresets",
+            "tomorrowMorning",
+            "nextMondayMorning"
+          ]
+        },
+        {
+          "source": "./lib/constants.js",
+          "specifiers": [
+            "TICK_ALARM"
+          ]
+        },
+        {
+          "source": "./lib/store.js",
+          "specifiers": [
+            "createStore"
+          ]
+        },
+        {
+          "source": "./features/snooze.js",
+          "specifiers": [
+            "createSnooze"
+          ]
+        },
+        {
+          "source": "./features/followup.js",
+          "specifiers": [
+            "createFollowups"
+          ]
+        },
+        {
+          "source": "./features/sendlater.js",
+          "specifiers": [
+            "createSendLater"
+          ]
+        },
+        {
+          "source": "./approval/manager.js",
+          "specifiers": [
+            "createApprovals"
+          ]
+        }
+      ],
+      "exports": [
+        "approvals",
+        "ready"
+      ],
+      "totalLines": 258,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/features/followup.js": {
+      "filePath": "addons/tools/src/features/followup.js",
+      "contentHash": "cacbe5f967a21c465fd9644be2e26858e683742a009ba1f1cd67b1eb61aa00bd",
+      "functions": [
+        {
+          "name": "createFollowups",
+          "params": [],
+          "exported": true,
+          "lineCount": 71
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/followup-tag.js",
+          "specifiers": [
+            "createFollowupTag"
+          ]
+        },
+        {
+          "source": "../../../shared/lib/mail.js",
+          "specifiers": [
+            "accountIdOf",
+            "summarizeHeader"
+          ]
+        },
+        {
+          "source": "../lib/constants.js",
+          "specifiers": [
+            "STORAGE_KEYS"
+          ]
+        },
+        {
+          "source": "../lib/store.js",
+          "specifiers": [
+            "recordKey"
+          ]
+        }
+      ],
+      "exports": [
+        "createFollowups"
+      ],
+      "totalLines": 85,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/features/sendlater.js": {
+      "filePath": "addons/tools/src/features/sendlater.js",
+      "contentHash": "310988671216883da492c2c7a878a5c3b3ac499faecfbe7a8bf1ca808b8e0a45",
+      "functions": [
+        {
+          "name": "addressList",
+          "params": [
+            "v"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "sameList",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isStringList",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "finiteTime",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "isValidRecord",
+          "params": [
+            "r",
+            "mapKey"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "createSendLater",
+          "params": [],
+          "exported": true,
+          "lineCount": 248
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../lib/constants.js",
+          "specifiers": [
+            "SEND_LATER_GRACE_MS",
+            "STORAGE_KEYS"
+          ]
+        },
+        {
+          "source": "../lib/store.js",
+          "specifiers": [
+            "recordKey"
+          ]
+        },
+        {
+          "source": "../lib/folders.js",
+          "specifiers": [
+            "findAllInFolder",
+            "findSpecialFolder"
+          ]
+        },
+        {
+          "source": "../lib/fingerprint.js",
+          "specifiers": [
+            "fingerprintMessage"
+          ]
+        }
+      ],
+      "exports": [
+        "STATUSES",
+        "isValidRecord",
+        "createSendLater"
+      ],
+      "totalLines": 325,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/features/snooze.js": {
+      "filePath": "addons/tools/src/features/snooze.js",
+      "contentHash": "9ca16bf3bd0765f74a0071b2eefab246fb7e41f622c0d1c8f50b7810cf051050",
+      "functions": [
+        {
+          "name": "validRecord",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "createSnooze",
+          "params": [],
+          "exported": true,
+          "lineCount": 125
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../../shared/lib/mail.js",
+          "specifiers": [
+            "accountIdOf"
+          ]
+        },
+        {
+          "source": "../lib/constants.js",
+          "specifiers": [
+            "STORAGE_KEYS"
+          ]
+        },
+        {
+          "source": "../lib/store.js",
+          "specifiers": [
+            "recordKey"
+          ]
+        },
+        {
+          "source": "../lib/folders.js",
+          "specifiers": [
+            "ensureSnoozeFolder",
+            "findAllInFolder",
+            "findInbox",
+            "hasUnsafeUse",
+            "validateSnoozeFolder"
+          ]
+        }
+      ],
+      "exports": [
+        "createSnooze"
+      ],
+      "totalLines": 163,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/lib/constants.js": {
+      "filePath": "addons/tools/src/lib/constants.js",
+      "contentHash": "b560cddd0f87e17ecfb3e97222785ce5444ba5202fc987543256f9b8398e3f92",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "SNOOZE_FOLDER_NAME",
+        "STORAGE_KEYS",
+        "TICK_ALARM",
+        "SEND_LATER_GRACE_MS",
+        "UNSAFE_SPECIAL_USES"
+      ],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/lib/fingerprint.js": {
+      "filePath": "addons/tools/src/lib/fingerprint.js",
+      "contentHash": "e728c479e093cb7e40dca24d8d7685e99e8de83d5e962fd1cb79699d37e23b89",
+      "functions": [
+        {
+          "name": "toBinaryString",
+          "params": [
+            "bytes"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "rawOf",
+          "params": [
+            "api",
+            "messageId"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "normalizeRaw",
+          "params": [
+            "raw"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "sha256Hex",
+          "params": [
+            "binary"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "fingerprintMessage",
+          "params": [
+            "api",
+            "messageId"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "normalizeRaw",
+        "sha256Hex",
+        "fingerprintMessage"
+      ],
+      "totalLines": 62,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/lib/folders.js": {
+      "filePath": "addons/tools/src/lib/folders.js",
+      "contentHash": "0af2cc99f06d52fbd0911691de4b0c4976aa1d8efca7e4bb6f3c4b2bb0dbc188",
+      "functions": [
+        {
+          "name": "uses",
+          "params": [
+            "folder"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hasUnsafeUse",
+          "params": [
+            "folder"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getFolder",
+          "params": [
+            "api",
+            "folderId"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "findInbox",
+          "params": [
+            "api",
+            "accountId"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "findSpecialFolder",
+          "params": [
+            "api",
+            "accountId",
+            "use"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "validateSnoozeFolder",
+          "params": [
+            "api",
+            "accountId",
+            "folderId"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "ensureSnoozeFolder",
+          "params": [
+            "api",
+            "accountId"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "findAllInFolder",
+          "params": [
+            "api",
+            "folderId",
+            "headerMessageId"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "UnsafeFolderError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "../../../shared/lib/mail.js",
+          "specifiers": [
+            "queryAll"
+          ]
+        },
+        {
+          "source": "./constants.js",
+          "specifiers": [
+            "SNOOZE_FOLDER_NAME",
+            "UNSAFE_SPECIAL_USES"
+          ]
+        }
+      ],
+      "exports": [
+        "UnsafeFolderError",
+        "hasUnsafeUse",
+        "findInbox",
+        "findSpecialFolder",
+        "validateSnoozeFolder",
+        "ensureSnoozeFolder",
+        "findAllInFolder"
+      ],
+      "totalLines": 89,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/lib/store.js": {
+      "filePath": "addons/tools/src/lib/store.js",
+      "contentHash": "088de9a92942d25dc6151fca3722ad0947916723863cefca445424eb8d3f845b",
+      "functions": [
+        {
+          "name": "createStore",
+          "params": [
+            "storageArea"
+          ],
+          "exported": true,
+          "lineCount": 46
+        },
+        {
+          "name": "recordKey",
+          "params": [
+            "accountId",
+            "headerMessageId"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "createStore",
+        "recordKey"
+      ],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/approval-history.html": {
+      "filePath": "addons/tools/src/ui/approval-history.html",
+      "contentHash": "afd9134392d425bbcf006e5d9ee94b4068e86a5c96759183da5cfcb3e897413c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/approval-history.js": {
+      "filePath": "addons/tools/src/ui/approval-history.js",
+      "contentHash": "2867e97174cd86ca58789c88192ba05e5cc5d5cdfe42847e96042ce94d1a28ab",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/approval.css": {
+      "filePath": "addons/tools/src/ui/approval.css",
+      "contentHash": "1eb0a6448689b001a687ff5c3e3a4109e9cc2345dd56ed9b6a76ffc4ef1cefd4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/approve.html": {
+      "filePath": "addons/tools/src/ui/approve.html",
+      "contentHash": "3c034d4f80a3f5b7c9b297e8ce984c7879f3bc0b78f96a28535f22456fb95b3d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/approve.js": {
+      "filePath": "addons/tools/src/ui/approve.js",
+      "contentHash": "44253a5f11341324a57e6b1bebdd84d7da01ae7f41e31d485eaeb7253ccfeef1",
+      "functions": [
+        {
+          "name": "element",
+          "params": [
+            "tag",
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "reason",
+          "params": [
+            "text",
+            "parent"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "choice",
+          "params": [
+            "parent"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "messages",
+          "params": [
+            "groups",
+            "parent"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "renderApproval",
+          "params": [
+            "data"
+          ],
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "renderApproval"
+      ],
+      "totalLines": 113,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/common.js": {
+      "filePath": "addons/tools/src/ui/common.js",
+      "contentHash": "65a57ccaf98ef4c71a9f0c717552f5c30ded111655104322562f117cb3ba3291",
+      "functions": [
+        {
+          "name": "call",
+          "params": [
+            "type"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "el",
+          "params": [
+            "tag"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "setStatus",
+          "params": [
+            "node",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "fmt",
+          "params": [
+            "iso"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "presetButton",
+          "params": [
+            "preset",
+            "onClick"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "activeTabId",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "toLocalInput",
+          "params": [
+            "iso"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "call",
+        "el",
+        "setStatus",
+        "fmt",
+        "presetButton",
+        "activeTabId",
+        "toLocalInput"
+      ],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/followups-popup.html": {
+      "filePath": "addons/tools/src/ui/followups-popup.html",
+      "contentHash": "24a3958bb3ee5b067e0f23f908bf863fe7e8b3f76796bbe643ae00851ee98369",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/followups-popup.js": {
+      "filePath": "addons/tools/src/ui/followups-popup.js",
+      "contentHash": "104c72d917d50ba92d59b6ce3461a296cb19a7c1770b15372caf84dea4272887",
+      "functions": [
+        {
+          "name": "renderContactsAccess",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "action",
+          "params": [
+            "text",
+            "fn"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "render",
+          "params": [],
+          "exported": false,
+          "lineCount": 34
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "call",
+            "el",
+            "fmt",
+            "setStatus"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/pick-time.html": {
+      "filePath": "addons/tools/src/ui/pick-time.html",
+      "contentHash": "2255b95c3675d9f1720ae4dcc828754e71d365b73d744bdad929a35e7bcc7c65",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 18,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/pick-time.js": {
+      "filePath": "addons/tools/src/ui/pick-time.js",
+      "contentHash": "7842a282ea5360d6b0984e9148b5fe2ea32203b2dd26d62e733f040c6b70aef4",
+      "functions": [
+        {
+          "name": "pad",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "call",
+            "setStatus"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/popup.css": {
+      "filePath": "addons/tools/src/ui/popup.css",
+      "contentHash": "e4f04fed0100b5ca047b19e8b8e40a3f0bdce5435d369520667766d2b2130340",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 69,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/sendlater-popup.html": {
+      "filePath": "addons/tools/src/ui/sendlater-popup.html",
+      "contentHash": "aefccb903d8beaac0f984feb9cddae924a0682fbc8bc1c685c8b449da76a995b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/sendlater-popup.js": {
+      "filePath": "addons/tools/src/ui/sendlater-popup.js",
+      "contentHash": "1ecddfb6ef102fade52bd4d8ccb85dc2f3d7295acacc42f69645ebcf79a9c2d9",
+      "functions": [
+        {
+          "name": "schedule",
+          "params": [
+            "payload"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "renderList",
+          "params": [],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "init",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "activeTabId",
+            "call",
+            "el",
+            "fmt",
+            "presetButton",
+            "setStatus",
+            "toLocalInput"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 61,
+      "hasStructuralAnalysis": true
+    },
+    "addons/tools/src/ui/snooze-popup.html": {
+      "filePath": "addons/tools/src/ui/snooze-popup.html",
+      "contentHash": "3467060dd3f504ee93d663445e967be6dd6f3bfebbea3dad7d80d1af213decfb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 18,
+      "hasStructuralAnalysis": false
+    },
+    "addons/tools/src/ui/snooze-popup.js": {
+      "filePath": "addons/tools/src/ui/snooze-popup.js",
+      "contentHash": "c8f9d147a3aa45bafb93ee443e08468473088e0401de2c551a02b7df123aa671",
+      "functions": [
+        {
+          "name": "run",
+          "params": [
+            "payload"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "init",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./common.js",
+          "specifiers": [
+            "activeTabId",
+            "call",
+            "presetButton",
+            "setStatus",
+            "toLocalInput"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 30,
+      "hasStructuralAnalysis": true
+    },
+    "docs/atn-submission.md": {
+      "filePath": "docs/atn-submission.md",
+      "contentHash": "2eea079197c89f0fd94e331aef15e0e9a97190c92685c856b509d05ccff62aab",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 72,
+      "hasStructuralAnalysis": false
+    },
+    "docs/release-channels.md": {
+      "filePath": "docs/release-channels.md",
+      "contentHash": "b25eb4ea0dd736307318539381a280b6a6e76e43d3e7893caa8730feb5578891",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 64,
+      "hasStructuralAnalysis": false
+    },
+    "docs/understand-anything.md": {
+      "filePath": "docs/understand-anything.md",
+      "contentHash": "7e22ea8451fc97fc200361242d55d47901c49cd58846f36afdc884c7bf6854e3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 33,
+      "hasStructuralAnalysis": false
+    },
+    "mcp/src/attachments.ts": {
+      "filePath": "mcp/src/attachments.ts",
+      "contentHash": "3a6fbb0aaa4a2c898fcc0c5dff6e19e12c1ddf0738b26caf30b25ffb32e41be2",
+      "functions": [
+        {
+          "name": "allowedRoots",
+          "params": [],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "stageLocal",
+          "params": [
+            "bridge",
+            "input"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 40
+        },
+        {
+          "name": "prepareAttachments",
+          "params": [
+            "bridge",
+            "inputs"
+          ],
+          "exported": true,
+          "lineCount": 24
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "constants"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "lstat",
+            "open",
+            "realpath"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./bridge-client.js",
+          "specifiers": [
+            "BridgeCaller"
+          ]
+        },
+        {
+          "source": "./bridge-client.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [
+        "prepareAttachments"
+      ],
+      "totalLines": 104,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/bridge-client.ts": {
+      "filePath": "mcp/src/bridge-client.ts",
+      "contentHash": "a70b62fd85395f7ed4f605225a56150ff7b9baa37aad3fc765ad142d61b9e09c",
+      "functions": [
+        {
+          "name": "atLeast",
+          "params": [
+            "version",
+            "major",
+            "minor"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [
+        {
+          "name": "BridgeError",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "BridgeClient",
+          "methods": [
+            "constructor",
+            "post",
+            "callOnce",
+            "call"
+          ],
+          "properties": [
+            "loadConnection",
+            "fetchImpl",
+            "timeoutMs",
+            "verifyProtocol",
+            "compatibleToken",
+            "compatibleVersion"
+          ],
+          "exported": true,
+          "lineCount": 137
+        }
+      ],
+      "imports": [
+        {
+          "source": "./connection.js",
+          "specifiers": [
+            "readConnection",
+            "ConnectionInfo"
+          ]
+        }
+      ],
+      "exports": [
+        "BridgeError",
+        "BridgeClient"
+      ],
+      "totalLines": 177,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/connection.ts": {
+      "filePath": "mcp/src/connection.ts",
+      "contentHash": "726ee26357ce0ccf53aebb6bbc68fa5349d87aa4fa344391e927d76c710752a1",
+      "functions": [
+        {
+          "name": "candidatePaths",
+          "params": [
+            "env",
+            "platform",
+            "home"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "parseConnection",
+          "params": [
+            "text",
+            "file"
+          ],
+          "returnType": "ConnectionInfo",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "currentUid",
+          "params": [],
+          "returnType": "number | null",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "checkPermissions",
+          "params": [
+            "st",
+            "file",
+            "platform"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "checkDirectory",
+          "params": [
+            "st",
+            "dir",
+            "platform"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "readVerified",
+          "params": [
+            "file",
+            "platform"
+          ],
+          "returnType": "Promise<ConnectionInfo>",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "readConnection",
+          "params": [
+            "paths"
+          ],
+          "returnType": "Promise<ConnectionInfo>",
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "classes": [
+        {
+          "name": "ConnectionError",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 1
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fsConstants",
+            "fs"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "FileHandle"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        }
+      ],
+      "exports": [
+        "APP_DIR",
+        "FILE_NAME",
+        "ConnectionError",
+        "candidatePaths",
+        "parseConnection",
+        "checkPermissions",
+        "checkDirectory",
+        "readVerified",
+        "readConnection"
+      ],
+      "totalLines": 176,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/format.ts": {
+      "filePath": "mcp/src/format.ts",
+      "contentHash": "ac20d05f8d5eec4cf5b7c092534e4e8a3b2f060f40b8eb46a81fd61c5c7de5a9",
+      "functions": [
+        {
+          "name": "wrapUntrusted",
+          "params": [
+            "label",
+            "data",
+            "nonce"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "randomBytes"
+          ]
+        }
+      ],
+      "exports": [
+        "UNTRUSTED_NOTICE",
+        "wrapUntrusted"
+      ],
+      "totalLines": 24,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/index.ts": {
+      "filePath": "mcp/src/index.ts",
+      "contentHash": "f93de1832a7cbccf03d2286815db2a07a40701a18880eff6fa358e876a0d40ee",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/server/stdio.js",
+          "specifiers": [
+            "StdioServerTransport"
+          ]
+        },
+        {
+          "source": "./bridge-client.js",
+          "specifiers": [
+            "BridgeClient"
+          ]
+        },
+        {
+          "source": "./server.js",
+          "specifiers": [
+            "createServer"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/server.ts": {
+      "filePath": "mcp/src/server.ts",
+      "contentHash": "2a1a13b7ef24d2f02af9dc87e7fc7bb3e174bad6b164a9b67e3813bea914bb6f",
+      "functions": [
+        {
+          "name": "publicErrorText",
+          "params": [
+            "e"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "openComposeBatch",
+          "params": [
+            "bridge",
+            "messages"
+          ],
+          "exported": false,
+          "lineCount": 37
+        },
+        {
+          "name": "createServer",
+          "params": [
+            "bridge"
+          ],
+          "returnType": "McpServer",
+          "exported": true,
+          "lineCount": 47
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/server/mcp.js",
+          "specifiers": [
+            "McpServer"
+          ]
+        },
+        {
+          "source": "./bridge-client.js",
+          "specifiers": [
+            "BridgeCaller"
+          ]
+        },
+        {
+          "source": "./bridge-client.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        },
+        {
+          "source": "./connection.js",
+          "specifiers": [
+            "ConnectionError"
+          ]
+        },
+        {
+          "source": "./format.js",
+          "specifiers": [
+            "wrapUntrusted"
+          ]
+        },
+        {
+          "source": "./tools.js",
+          "specifiers": [
+            "SAFETY",
+            "TOOLS",
+            "UNTRUSTED"
+          ]
+        },
+        {
+          "source": "./version.js",
+          "specifiers": [
+            "PACKAGE_VERSION"
+          ]
+        },
+        {
+          "source": "./attachments.js",
+          "specifiers": [
+            "prepareAttachments",
+            "AttachmentInput"
+          ]
+        }
+      ],
+      "exports": [
+        "SERVER_NAME",
+        "SERVER_VERSION",
+        "INSTRUCTIONS",
+        "PUBLIC_ERROR_CODES",
+        "publicErrorText",
+        "createServer"
+      ],
+      "totalLines": 192,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/tools.ts": {
+      "filePath": "mcp/src/tools.ts",
+      "contentHash": "73c16391dff95196e1fd5afedd8e5cf091845ea001147e880890fb05b37c1a3e",
+      "functions": [
+        {
+          "name": "pick",
+          "params": [
+            "args",
+            "map"
+          ],
+          "returnType": "Record<string, unknown>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "idsOf",
+          "params": [
+            "args"
+          ],
+          "returnType": "Record<string, unknown>",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "desc",
+          "params": [
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "cleanupParams",
+          "params": [
+            "a"
+          ],
+          "exported": false,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "zod",
+          "specifiers": [
+            "z"
+          ]
+        }
+      ],
+      "exports": [
+        "SAFETY",
+        "UNTRUSTED",
+        "TOOLS"
+      ],
+      "totalLines": 365,
+      "hasStructuralAnalysis": true
+    },
+    "mcp/src/version.ts": {
+      "filePath": "mcp/src/version.ts",
+      "contentHash": "0e701ce2c199c65e0cedae06baf5e686a61eff431fc51f16b34c4467c228b7b6",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "PACKAGE_VERSION"
+      ],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "package.json": {
+      "filePath": "package.json",
+      "contentHash": "c407be1176cbedb708b4f37b5bce9e187ab6fad6ee263838e80e0936ca3e6512",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": false
+    },
+    "scripts/bootstrap-release-key.mjs": {
+      "filePath": "scripts/bootstrap-release-key.mjs",
+      "contentHash": "e4b66ed89aefd0ab5ddb103f1b22e00a9790667d56b4aa7a1780702aaef756e3",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash",
+            "generateKeyPairSync",
+            "sign"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdir",
+            "readFile",
+            "stat",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./update-core.mjs",
+          "specifiers": [
+            "parseBundle",
+            "verifyMetadata"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 41,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/build-update-bundle.mjs": {
+      "filePath": "scripts/build-update-bundle.mjs",
+      "contentHash": "dbb53fedeb6f8d1301755492be86a88226768ff458063c29cdb696648c99b481",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile",
+            "readdir",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./update-core.mjs",
+          "specifiers": [
+            "parseBundle"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/build-xpi.mjs": {
+      "filePath": "scripts/build-xpi.mjs",
+      "contentHash": "072aec723aae1588b0f6be7f19d267928bb23dc3df2fc7bd68a97dfa96900522",
+      "functions": [
+        {
+          "name": "walk",
+          "params": [
+            "dir"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "importsOf",
+          "params": [
+            "file"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "addonEntries",
+          "params": [
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 39
+        },
+        {
+          "name": "crc32",
+          "params": [
+            "buf"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "zip",
+          "params": [
+            "files"
+          ],
+          "exported": true,
+          "lineCount": 52
+        },
+        {
+          "name": "buildXpis",
+          "params": [],
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:zlib",
+          "specifiers": [
+            "deflateRawSync"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "existsSync",
+            "mkdirSync",
+            "readFileSync",
+            "readdirSync",
+            "rmSync",
+            "statSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "dirname",
+            "join",
+            "relative",
+            "resolve",
+            "sep"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        }
+      ],
+      "exports": [
+        "importsOf",
+        "addonEntries",
+        "zip",
+        "buildXpis"
+      ],
+      "totalLines": 172,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/launch.mjs": {
+      "filePath": "scripts/launch.mjs",
+      "contentHash": "d6825fde0ebcfef41cb81cb5db4ec1a0a4a1f1880c770d1846f4bde54cfb58ed",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawn"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "writeSync"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile",
+            "stat"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./update-core.mjs",
+          "specifiers": [
+            "newer",
+            "readActive",
+            "readUpdateStatus",
+            "rollback",
+            "DATA_DIR"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 56,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/prepare-release.mjs": {
+      "filePath": "scripts/prepare-release.mjs",
+      "contentHash": "212cf010c1802729ec68f54c9455d705cf4f6af40a24deca29ba01486f7c586f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/sign-update.mjs": {
+      "filePath": "scripts/sign-update.mjs",
+      "contentHash": "553786512a73a35fa50c44b2fe4a21303fc778f929a03f4ce6fbdd8dce00f6e4",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash",
+            "createPrivateKey",
+            "sign"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./update-core.mjs",
+          "specifiers": [
+            "parseBundle"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/smoke/build-tools.mjs": {
+      "filePath": "scripts/smoke/build-tools.mjs",
+      "contentHash": "71ff85a725ad6bc9beda572fa593cd964ac53e0310449c43933e9bd5e3f70f9e",
+      "functions": [
+        {
+          "name": "buildSmokeAddon",
+          "params": [
+            "out"
+          ],
+          "exported": true,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync",
+            "writeFileSync",
+            "mkdtempSync",
+            "rmSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "join",
+            "dirname"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "../build-xpi.mjs",
+          "specifiers": [
+            "addonEntries",
+            "zip"
+          ]
+        }
+      ],
+      "exports": [
+        "buildSmokeAddon"
+      ],
+      "totalLines": 31,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/smoke/run-smoke.mjs": {
+      "filePath": "scripts/smoke/run-smoke.mjs",
+      "contentHash": "ac42abed6128a804a558a1f61c2a3e443453f70b75373e1b9ad248d6a9efb63c",
+      "functions": [
+        {
+          "name": "check",
+          "params": [
+            "name",
+            "ok"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "sleep",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "waitFor",
+          "params": [
+            "what",
+            "fn"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "ourThunderbirdPids",
+          "params": [],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "ourDisplayEnv",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "clickOnOurDisplay",
+          "params": [
+            "point"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "mboxes",
+          "params": [
+            "dir"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "read",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFileSync",
+            "spawn"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "existsSync",
+            "mkdirSync",
+            "mkdtempSync",
+            "readFileSync",
+            "readdirSync",
+            "rmSync",
+            "statSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:net",
+          "specifiers": [
+            "net"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "dirname",
+            "join"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/index.js",
+          "specifiers": [
+            "Client"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/stdio.js",
+          "specifiers": [
+            "StdioClientTransport"
+          ]
+        },
+        {
+          "source": "../build-xpi.mjs",
+          "specifiers": [
+            "zip"
+          ]
+        },
+        {
+          "source": "./build-tools.mjs",
+          "specifiers": [
+            "buildSmokeAddon"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 579,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/smoke/seed/background.js": {
+      "filePath": "scripts/smoke/seed/background.js",
+      "contentHash": "abc82bc838cb2d80e8a8339256599174113f31ea3016029d3eec3d126d94259a",
+      "functions": [
+        {
+          "name": "eml",
+          "params": [
+            "i"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "seed",
+          "params": [],
+          "exported": false,
+          "lineCount": 26
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/smoke/seed/manifest.json": {
+      "filePath": "scripts/smoke/seed/manifest.json",
+      "contentHash": "8f88ef1cb99d80f6421d5854fccc9814655fd95268491ad41a57de7375b0f580",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": false
+    },
+    "scripts/smoke/ui-hook.js": {
+      "filePath": "scripts/smoke/ui-hook.js",
+      "contentHash": "bb10584bdfd1f2e83b5757926036c564748c60e00028fa01a01e182e04c0c4ed",
+      "functions": [
+        {
+          "name": "point",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/sync-version.mjs": {
+      "filePath": "scripts/sync-version.mjs",
+      "contentHash": "91c8dae17183155ab8f071572068ac6ff8190457b325337d5f5100cf531ff621",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "dirname",
+            "join"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/update-core.mjs": {
+      "filePath": "scripts/update-core.mjs",
+      "contentHash": "f6a5fba14ad4e4821d077ee0baed85293e3672249900f1a6a2255690bcceadda",
+      "functions": [
+        {
+          "name": "newer",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "verifyMetadata",
+          "params": [
+            "raw",
+            "publicKeyDer"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "download",
+          "params": [
+            "url",
+            "limit"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "parseBundle",
+          "params": [
+            "bytes",
+            "expectedVersion"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "atomicJson",
+          "params": [
+            "file",
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "privateDirectory",
+          "params": [
+            "dir"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "privateJson",
+          "params": [
+            "file",
+            "limit"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "safeUpdateError",
+          "params": [
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "validateUpdateStatus",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "writeUpdateStatus",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "readUpdateStatus",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "readActive",
+          "params": [],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "acquireUpdateLock",
+          "params": [
+            "lockPath"
+          ],
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "stageRelease",
+          "params": [],
+          "exported": true,
+          "lineCount": 55
+        },
+        {
+          "name": "defaultInstallDependencies",
+          "params": [
+            "stage"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "rollback",
+          "params": [],
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash",
+            "createPublicKey",
+            "randomUUID",
+            "verify"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "lstat",
+            "mkdir",
+            "open",
+            "readFile",
+            "rename",
+            "stat",
+            "writeFile",
+            "rm",
+            "unlink"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawn"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        }
+      ],
+      "exports": [
+        "DATA_DIR",
+        "newer",
+        "verifyMetadata",
+        "download",
+        "parseBundle",
+        "safeUpdateError",
+        "writeUpdateStatus",
+        "readUpdateStatus",
+        "readActive",
+        "stageRelease",
+        "rollback"
+      ],
+      "totalLines": 291,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/update-worker.mjs": {
+      "filePath": "scripts/update-worker.mjs",
+      "contentHash": "26f7d0ac9562f5a64cfd7ba4db2f39b97cf5e7cef99ff2b88e3a07e8443bddf9",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./update-core.mjs",
+          "specifiers": [
+            "safeUpdateError",
+            "stageRelease",
+            "writeUpdateStatus"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 27,
+      "hasStructuralAnalysis": true
+    },
+    "test/approval.test.ts": {
+      "filePath": "test/approval.test.ts",
+      "contentHash": "28e734a5ffcfde4671c8ceda74fd6a9ad98592fb3d28fcbdf060cbec034dc1a4",
+      "functions": [
+        {
+          "name": "folder",
+          "params": [
+            "name",
+            "specialUse"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "fixture",
+          "params": [
+            "fetchImpl"
+          ],
+          "exported": false,
+          "lineCount": 32
+        },
+        {
+          "name": "cleanup",
+          "params": [
+            "ids",
+            "extra"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/lib/store.js",
+          "specifiers": [
+            "createStore"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/approval/manager.js",
+          "specifiers": [
+            "createApprovals",
+            "APPROVAL_TIMEOUT_MS",
+            "TRUST_DURATION_MS",
+            "canonical",
+            "sha256Text"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/approval-schema.js",
+          "specifiers": [
+            "validateCleanup",
+            "validateFolderChanges",
+            "validateUnsubscribe"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/approval/cleanup.js",
+          "specifiers": [
+            "planCleanup"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/approval/folder-changes.js",
+          "specifiers": [
+            "planFolderChanges"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/approval/unsubscribe.js",
+          "specifiers": [
+            "planUnsubscribe",
+            "safeOneClickUrl"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/approval/state.js",
+          "specifiers": [
+            "planState"
+          ]
+        },
+        {
+          "source": "../addons/app/src/relay.js",
+          "specifiers": [
+            "createLocalRelay"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/mail-ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 564,
+      "hasStructuralAnalysis": true
+    },
+    "test/attachments.test.ts": {
+      "filePath": "test/attachments.test.ts",
+      "contentHash": "4d2a9ac6efc168e403eacd9be8e4fb422bd57c1fa15a29d51f92a19ad3b08ae2",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "mkdtemp",
+            "rm",
+            "symlink",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/attachment-stage.js",
+          "specifiers": [
+            "createAttachmentStage"
+          ]
+        },
+        {
+          "source": "../mcp/src/attachments.js",
+          "specifiers": [
+            "prepareAttachments"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 57,
+      "hasStructuralAnalysis": true
+    },
+    "test/bridge-ops.test.ts": {
+      "filePath": "test/bridge-ops.test.ts",
+      "contentHash": "4dd12b623df9a95d7386c6bc77af73e1cc517a4da43c93d94c3de3c761119682",
+      "functions": [
+        {
+          "name": "setup",
+          "params": [
+            "opts"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/mail-routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/validate.js",
+          "specifiers": [
+            "createDeadline"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 304,
+      "hasStructuralAnalysis": true
+    },
+    "test/bridge-permissions.test.ts": {
+      "filePath": "test/bridge-permissions.test.ts",
+      "contentHash": "f807ca8fc3f0b532cdc712eab99aae4f7e0f4e464781fdc60492c940dd3ac44c",
+      "functions": [
+        {
+          "name": "manifest",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../scripts/build-xpi.mjs",
+          "specifiers": [
+            "buildXpis"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "mkdtempSync",
+            "rmSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "../scripts/smoke/build-tools.mjs",
+          "specifiers": [
+            "buildSmokeAddon"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "dirname",
+            "join",
+            "resolve"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "beforeAll",
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./helpers/zip.js",
+          "specifiers": [
+            "readZip"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": true
+    },
+    "test/bridge-server.test.ts": {
+      "filePath": "test/bridge-server.test.ts",
+      "contentHash": "0428087e65c62488e53312a82e3dde0739195b7f87e2d0b0a9b85ba591d928d6",
+      "functions": [
+        {
+          "name": "setup",
+          "params": [
+            "routes"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "request",
+          "params": [
+            "over"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "parse",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/server.js",
+          "specifiers": [
+            "HANDLER_BUDGET_MS",
+            "MAX_IN_FLIGHT",
+            "MAX_RESPONSE_BYTES",
+            "createRequestHandler"
+          ]
+        },
+        {
+          "source": "./helpers/framing.js",
+          "specifiers": [
+            "loadFraming"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/security.js",
+          "specifiers": [
+            "generateToken",
+            "timingSafeEqual"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/validate.js",
+          "specifiers": [
+            "BridgeError"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 306,
+      "hasStructuralAnalysis": true
+    },
+    "test/bridge-startup.test.ts": {
+      "filePath": "test/bridge-startup.test.ts",
+      "contentHash": "23b9d274b2ac88e57def800305347a16e37fd19b8af656e6e81a05d8d244d17f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "test/compose-review.test.ts": {
+      "filePath": "test/compose-review.test.ts",
+      "contentHash": "b688851343c233ff89f5b17d17b5bb5c57b36383736c07b4ed726cf7e08dda36",
+      "functions": [
+        {
+          "name": "setup",
+          "params": [
+            "now",
+            "opts"
+          ],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/mail-routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/mail-ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 253,
+      "hasStructuralAnalysis": true
+    },
+    "test/experiment.test.ts": {
+      "filePath": "test/experiment.test.ts",
+      "contentHash": "9dae08243bdb3ac94f7b11a9aef4d92c21cbc832ca48c15ea61f1b5b73b1e40b",
+      "functions": [
+        {
+          "name": "harness",
+          "params": [],
+          "exported": false,
+          "lineCount": 114
+        },
+        {
+          "name": "flush",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "node:vm",
+          "specifiers": [
+            "vm"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 270,
+      "hasStructuralAnalysis": true
+    },
+    "test/framing.test.ts": {
+      "filePath": "test/framing.test.ts",
+      "contentHash": "0bed264557c1518c166cf4e6cc351e7d0884bf237fdda764b7a2c8a0f66efeee",
+      "functions": [
+        {
+          "name": "req",
+          "params": [
+            "head",
+            "body"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./helpers/framing.js",
+          "specifiers": [
+            "loadFraming"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 92,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/fake-messenger.ts": {
+      "filePath": "test/helpers/fake-messenger.ts",
+      "contentHash": "70d37f670a25d883802dfa3b2f3aee7d3264956b764fe452a0950356c3888401",
+      "functions": [
+        {
+          "name": "createFakeMessenger",
+          "params": [
+            "opts"
+          ],
+          "exported": true,
+          "lineCount": 324
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "vi"
+          ]
+        }
+      ],
+      "exports": [
+        "createFakeMessenger"
+      ],
+      "totalLines": 359,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/framing.ts": {
+      "filePath": "test/helpers/framing.ts",
+      "contentHash": "d47aa2adc3473e3fdec700a2d287458e42fea19d6581e777e2e84f96339c2c98",
+      "functions": [
+        {
+          "name": "loadFraming",
+          "params": [],
+          "returnType": "Framing",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "node:vm",
+          "specifiers": [
+            "vm"
+          ]
+        }
+      ],
+      "exports": [
+        "loadFraming"
+      ],
+      "totalLines": 31,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/node-bridge.ts": {
+      "filePath": "test/helpers/node-bridge.ts",
+      "contentHash": "fe0c32be4dafffb52e65ceaa626d57033d7eb4146a553bd7e1744979980bbd92",
+      "functions": [
+        {
+          "name": "startNodeBridge",
+          "params": [
+            "makeHandler"
+          ],
+          "exported": true,
+          "lineCount": 38
+        },
+        {
+          "name": "rawRequest",
+          "params": [
+            "port",
+            "data"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:net",
+          "specifiers": [
+            "net"
+          ]
+        },
+        {
+          "source": "./framing.js",
+          "specifiers": [
+            "loadFraming"
+          ]
+        }
+      ],
+      "exports": [
+        "startNodeBridge",
+        "rawRequest"
+      ],
+      "totalLines": 65,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/permissions.ts": {
+      "filePath": "test/helpers/permissions.ts",
+      "contentHash": "fe2a343d58cc37a7702ca0c4e468f063ad134edefbd1acc61189942dda69bf9f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "BRIDGE_PERMISSIONS",
+        "FORBIDDEN_PERMISSIONS",
+        "API_PERMISSIONS"
+      ],
+      "totalLines": 73,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/recorder.ts": {
+      "filePath": "test/helpers/recorder.ts",
+      "contentHash": "95f9328e7b79f115700337360a2eee829849075df6ff92005c588c480c863ae3",
+      "functions": [
+        {
+          "name": "recordApi",
+          "params": [
+            "target"
+          ],
+          "returnType": "Recording",
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "recordApi"
+      ],
+      "totalLines": 51,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers/zip.ts": {
+      "filePath": "test/helpers/zip.ts",
+      "contentHash": "dca33e6c8e6a789aae28f1b935d00a681e9a351db9ba4677fe40fb273688f466",
+      "functions": [
+        {
+          "name": "readZip",
+          "params": [
+            "file",
+            "filter"
+          ],
+          "returnType": "Map<string, Buffer>",
+          "exported": true,
+          "lineCount": 32
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:zlib",
+          "specifiers": [
+            "inflateRawSync"
+          ]
+        }
+      ],
+      "exports": [
+        "readZip"
+      ],
+      "totalLines": 38,
+      "hasStructuralAnalysis": true
+    },
+    "test/loopback-e2e.test.ts": {
+      "filePath": "test/loopback-e2e.test.ts",
+      "contentHash": "d9f576c72b33870b9c7f2dfe3fa1957bf716e4123cc64c8b164414cfefb32838",
+      "functions": [
+        {
+          "name": "status",
+          "params": [
+            "raw"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterAll",
+            "beforeAll",
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/routes.js",
+          "specifiers": [
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/server.js",
+          "specifiers": [
+            "createRequestHandler"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/security.js",
+          "specifiers": [
+            "generateToken"
+          ]
+        },
+        {
+          "source": "../mcp/src/bridge-client.js",
+          "specifiers": [
+            "BridgeClient"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        },
+        {
+          "source": "./helpers/node-bridge.js",
+          "specifiers": [
+            "rawRequest",
+            "startNodeBridge"
+          ]
+        },
+        {
+          "source": "./helpers/framing.js",
+          "specifiers": [
+            "loadFraming"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": true
+    },
+    "test/mcp-connection.test.ts": {
+      "filePath": "test/mcp-connection.test.ts",
+      "contentHash": "be8a0873fdc2ae74fa1d56be7e60215801c0f7e7855a35e5ee2297e5f88fa8df",
+      "functions": [
+        {
+          "name": "tmp",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "writeConn",
+          "params": [
+            "file",
+            "data",
+            "mode"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "chmodSync",
+            "mkdirSync",
+            "mkdtempSync",
+            "rmSync",
+            "symlinkSync",
+            "utimesSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../mcp/src/connection.js",
+          "specifiers": [
+            "candidatePaths",
+            "checkDirectory",
+            "checkPermissions",
+            "parseConnection",
+            "readConnection"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "test/mcp-server.test.ts": {
+      "filePath": "test/mcp-server.test.ts",
+      "contentHash": "3da1b7722c680f5737e8e071d49a43c785a23fb702074aa0b890ba052ed5258d",
+      "functions": [
+        {
+          "name": "connect",
+          "params": [
+            "bridge"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "text",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "data",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/client/index.js",
+          "specifiers": [
+            "Client"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/inMemory.js",
+          "specifiers": [
+            "InMemoryTransport"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../mcp/src/bridge-client.js",
+          "specifiers": [
+            "BridgeClient",
+            "BridgeError",
+            "BridgeCaller"
+          ]
+        },
+        {
+          "source": "../mcp/src/format.js",
+          "specifiers": [
+            "wrapUntrusted"
+          ]
+        },
+        {
+          "source": "../mcp/src/server.js",
+          "specifiers": [
+            "createServer",
+            "SERVER_VERSION"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 403,
+      "hasStructuralAnalysis": true
+    },
+    "test/no-send-surface.test.ts": {
+      "filePath": "test/no-send-surface.test.ts",
+      "contentHash": "bbfa435b9ffd9fb2cdfdfbbc8e2ddd46661c7fda1e57f255dfcc9bac8656201b",
+      "functions": [
+        {
+          "name": "prng",
+          "params": [
+            "seed"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "loadRealBridge",
+          "params": [
+            "seedMessages"
+          ],
+          "exported": false,
+          "lineCount": 34
+        },
+        {
+          "name": "forbiddenSpiesOf",
+          "params": [
+            "fake"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/routes.js",
+          "specifiers": [
+            "ROUTE_NAMES",
+            "createRoutes"
+          ]
+        },
+        {
+          "source": "../addons/bridge/src/bridge/ops.js",
+          "specifiers": [
+            "createMailOps"
+          ]
+        },
+        {
+          "source": "../mcp/src/tools.js",
+          "specifiers": [
+            "TOOLS"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        },
+        {
+          "source": "./helpers/recorder.js",
+          "specifiers": [
+            "recordApi"
+          ]
+        },
+        {
+          "source": "./helpers/permissions.js",
+          "specifiers": [
+            "API_PERMISSIONS"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 234,
+      "hasStructuralAnalysis": true
+    },
+    "test/tools-background.test.ts": {
+      "filePath": "test/tools-background.test.ts",
+      "contentHash": "2c71363fc9e91e4b89b8665a204e10bf8193d08b536d788a1c9523f74a6a97e1",
+      "functions": [
+        {
+          "name": "loadTools",
+          "params": [],
+          "exported": false,
+          "lineCount": 28
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger"
+          ]
+        },
+        {
+          "source": "./helpers/recorder.js",
+          "specifiers": [
+            "recordApi"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 121,
+      "hasStructuralAnalysis": true
+    },
+    "test/tools-features.test.ts": {
+      "filePath": "test/tools-features.test.ts",
+      "contentHash": "9c3bd4e30a45768b03e8517bb4fa5ffc493e7e503530a703669d9e2837aa0a1f",
+      "functions": [
+        {
+          "name": "at",
+          "params": [
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "snoozeSetup",
+          "params": [
+            "extraFolders"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "sendLaterSetup",
+          "params": [
+            "now"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "scheduleOne",
+          "params": [
+            "ctx",
+            "subject",
+            "when"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "sends",
+          "params": [
+            "fake"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/features/snooze.js",
+          "specifiers": [
+            "createSnooze"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/features/followup.js",
+          "specifiers": [
+            "createFollowups"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/features/sendlater.js",
+          "specifiers": [
+            "createSendLater",
+            "isValidRecord"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/lib/store.js",
+          "specifiers": [
+            "createStore"
+          ]
+        },
+        {
+          "source": "../addons/tools/src/lib/fingerprint.js",
+          "specifiers": [
+            "fingerprintMessage",
+            "normalizeRaw",
+            "sha256Hex"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/constants.js",
+          "specifiers": [
+            "FOLLOWUP_TAG_KEY"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/time.js",
+          "specifiers": [
+            "laterToday",
+            "nextMondayMorning",
+            "parseWhen",
+            "snoozePresets",
+            "tomorrowMorning"
+          ]
+        },
+        {
+          "source": "../addons/shared/lib/text.js",
+          "specifiers": [
+            "normalizeSubject",
+            "parseMessageIds",
+            "quoteForReply",
+            "stripHtml"
+          ]
+        },
+        {
+          "source": "./helpers/fake-messenger.js",
+          "specifiers": [
+            "createFakeMessenger",
+            "FakeFolder"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 443,
+      "hasStructuralAnalysis": true
+    },
+    "test/update-core.test.ts": {
+      "filePath": "test/update-core.test.ts",
+      "contentHash": "0bacb5501c79e62310f1b23f2b56ec7ed8599e5d3e9331ca38509605cd948889",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [
+            "version",
+            "files"
+          ],
+          "exported": false,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash",
+            "generateKeyPairSync",
+            "sign"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "chmodSync",
+            "mkdtempSync",
+            "readFileSync",
+            "rmSync",
+            "mkdirSync",
+            "statSync",
+            "symlinkSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../scripts/update-core.mjs",
+          "specifiers": [
+            "download",
+            "newer",
+            "parseBundle",
+            "readActive",
+            "readUpdateStatus",
+            "rollback",
+            "safeUpdateError",
+            "stageRelease",
+            "verifyMetadata",
+            "writeUpdateStatus"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 180,
+      "hasStructuralAnalysis": true
+    },
+    "tsconfig.json": {
+      "filePath": "tsconfig.json",
+      "contentHash": "f489b6adf704b2e2d92e2c88d828cf0da499b4c835f2d042466d008c1d134924",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": false
+    },
+    "updates/public-key.txt": {
+      "filePath": "updates/public-key.txt",
+      "contentHash": "60971a42b8049685c0dd6694d391b23c0db1894f0346b0464f47680f9b91441c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    "vitest.config.ts": {
+      "filePath": "vitest.config.ts",
+      "contentHash": "d48f83720e2ca423171489fd31f5a66f68639d95444e61e8c41e30ce7b44ba57",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest/config",
+          "specifiers": [
+            "defineConfig"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 9,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

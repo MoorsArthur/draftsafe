@@ -202,6 +202,57 @@ describe("bridge request validation (addons/bridge/src/bridge/server.js)", () =>
     expect((await handle(request({ target: "/v1/messages.get" }))).status).toBe(200);
   });
 
+  it("keeps health responsive when several full-text searches stall", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const slow = vi.fn(async () => { await gate; return {}; });
+    const { handle } = setup({ "messages.search": slow });
+    const attempts = Array.from({ length: MAX_IN_FLIGHT }, () => handle(request({ target: "/v1/messages.search" })));
+    try {
+      await vi.waitFor(() => expect(slow).toHaveBeenCalled());
+      expect((await handle(request())).status).toBe(200);
+      expect(slow).toHaveBeenCalledTimes(1);
+      const waiting = await Promise.all(attempts.slice(1));
+      expect(waiting.every(response => response.status === 503)).toBe(true);
+    } finally {
+      release();
+      await Promise.all(attempts);
+    }
+  });
+
+  it("shares the search permit with recipient lookup", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const slow = vi.fn(async () => { await gate; return {}; });
+    const { handle } = setup({ "recipients.find": slow, "messages.search": slow });
+    const pending = handle(request({ target: "/v1/recipients.find" }));
+    try {
+      await vi.waitFor(() => expect(slow).toHaveBeenCalledTimes(1));
+      const blocked = await handle(request({ target: "/v1/messages.search" }));
+      expect(blocked.status).toBe(503);
+      expect(JSON.parse(blocked.body).error.code).toBe("busy");
+      expect((await handle(request())).status).toBe(200);
+    } finally {
+      release();
+      await pending;
+    }
+    expect((await handle(request({ target: "/v1/messages.search" }))).status).toBe(200);
+  });
+
+  it("keeps health responsive when all ordinary request slots are occupied", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const { handle } = setup({ "messages.get": async () => { await gate; return {}; } });
+    const pending = Array.from({ length: MAX_IN_FLIGHT }, () => handle(request({ target: "/v1/messages.get" })));
+    try {
+      await vi.waitFor(async () => expect((await handle(request({ target: "/v1/messages.get" }))).status).toBe(503));
+      expect((await handle(request())).status).toBe(200);
+    } finally {
+      release();
+      await Promise.all(pending);
+    }
+  });
+
   it("times out a stuck search response but retains its in-flight permit until Thunderbird settles", async () => {
     vi.useFakeTimers();
     let release!: () => void;
@@ -209,7 +260,7 @@ describe("bridge request validation (addons/bridge/src/bridge/server.js)", () =>
     const slow = vi.fn(async () => { await gate; return {}; });
     const { handle } = setup({ "messages.search": slow });
     try {
-      const pending = Array.from({ length: MAX_IN_FLIGHT }, () => handle(request({ target: "/v1/messages.search" })));
+      const pending = [handle(request({ target: "/v1/messages.search" }))];
       await vi.advanceTimersByTimeAsync(HANDLER_BUDGET_MS + 1);
       const responses = await Promise.all(pending);
       for (const response of responses) {
@@ -217,6 +268,7 @@ describe("bridge request validation (addons/bridge/src/bridge/server.js)", () =>
         expect(JSON.parse(response.body).error.code).toBe("timeout");
       }
       expect((await handle(request({ target: "/v1/messages.search" }))).status).toBe(503);
+      expect((await handle(request())).status).toBe(200);
       release();
       await vi.advanceTimersByTimeAsync(0);
       expect((await handle(request({ target: "/v1/messages.search" }))).status).toBe(200);

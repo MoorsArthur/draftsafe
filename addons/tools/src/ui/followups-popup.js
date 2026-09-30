@@ -2,6 +2,23 @@
 import { call, el, fmt, setStatus } from "./common.js";
 
 const status = document.getElementById("status");
+const contactsButton = document.getElementById("contacts-access");
+
+async function renderContactsAccess() {
+  const enabled = await messenger.permissions.contains({ permissions: ["addressBooks"] });
+  contactsButton.textContent = enabled ? "Local contacts enabled" : "Enable local contacts";
+  contactsButton.disabled = enabled;
+}
+
+contactsButton.addEventListener("click", async () => {
+  try {
+    const granted = await messenger.permissions.request({ permissions: ["addressBooks"] });
+    setStatus(status, granted ? "Local contacts enabled for recipient lookup." : "Contact access was not granted.", !granted);
+    await renderContactsAccess();
+  } catch {
+    setStatus(status, "Could not enable local contacts.", true);
+  }
+});
 
 function action(text, fn) {
   return el("button", {
@@ -53,4 +70,4 @@ async function render() {
   }
 }
 
-render().catch(e => setStatus(status, e.message, true));
+Promise.all([render(), renderContactsAccess()]).catch(e => setStatus(status, e.message, true));

@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.8.0 (release candidate)
+
+- Added `fast:true` to message search. It returns Thunderbird's first page
+  promptly, skips list-classification header reads and marks incomplete pages
+  with a cursor. `get_message` still supplies full headers before an action.
+- Added read-only `find_recipients` with bounded Sent history and local contact
+  suggestions. Contact access is optional and begins only after a click in
+  Thunderbird's Follow-ups popup. Ambiguous addresses are reported for user
+  confirmation; no contact-write or send route was added.
+- Clarified exact-address versus partial-name matching and compatibility with
+  older add-ons.
+- Search requests now use the requested page size and avoid prefetching an
+  extra page. Recipient lookup shares the single search slot so a slow Sent
+  query cannot pile up with mail searches.
+
+## 0.7.1 (release candidate)
+
+- Keeps bridge health responsive when Thunderbird searches or other reads
+  stall. Only one search runs at a time so full-text queries cannot occupy
+  every ordinary request slot. Busy and timeout responses remain distinct
+  from a completed search with no matches.
+- Search tool guidance favors narrower account, folder, sender, subject and
+  date filters. The signed MCP updater accepts up to three HTTPS redirects
+  for release assets while omitting credentials and checking the signature
+  and bundle hash.
+- Prepares one canonical repository, a tag-only release candidate workflow,
+  public listing materials and a local release signing key. External release
+  channels remain inactive until publication and review.
+
+## 0.6.0 (unreleased)
+
+- Up to five agent-created compose windows may stay open; twelve opens per
+  rolling hour remain the limit. `update_compose_for_review` edits agent text,
+  new-mail To/subject and agent-added attachments in a chosen window. It
+  refuses to overwrite a window changed by the user.
+- New and reply composers accept local files from bounded folders and
+  attachments from existing emails. Local bytes use authenticated in-memory
+  chunk staging with size, count and expiry limits. The configured signature
+  and reply quote remain intact. No send route or new permission was added.
+- Tests cover attachment byte fidelity, path and symlink rejection, multiple
+  windows, user-edit conflicts, signatures and route-level no-send behavior.
+  Manual real-profile compose review remains required after installation.
+
+## 0.5.1 (unreleased)
+
+- Agent-prepared new and reply composers now follow the selected identity's
+  HTML or plain-text format. Thunderbird builds its configured signature and
+  reply quote first; Draftsafe inserts escaped plain-text input above them.
+  Reply drafts saved by `create_draft` use the same approach. New drafts saved
+  directly in the background remain plain text and may not gain a signature.
+- Updated MCP tool descriptions to tell agents not to duplicate the identity
+  sign-off. No send route or new Thunderbird permission was added. Unit tests
+  cover HTML signatures, inline logo references, quotes and plain-text mode;
+  manual validation in a real profile is still required after installation.
+
 ## 0.5.0 (unreleased)
 
 - Added `open_compose_for_review` for plain-text new messages and threaded

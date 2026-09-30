@@ -4,10 +4,13 @@
 // combined manifest has Send later permission, but this module never sends.
 
 import { FOLLOWUP_TAG_KEY } from "./constants.js";
+import { identityForReply, insertAgentText } from "./compose-body.js";
 import { createComposeReview } from "./compose-review.js";
+import { createAttachmentStage } from "./attachment-stage.js";
 import { createFollowupTag } from "./followup-tag.js";
+import { findRecipients } from "./recipient-lookup.js";
 import { abortList, queryAll, summarizeFolder, summarizeHeader } from "./mail.js";
-import { normalizeSubject, parseMessageIds, quoteForReply, stripHtml, truncate } from "./text.js";
+import { normalizeSubject, parseMessageIds, stripHtml, truncate } from "./text.js";
 import { BridgeError, NO_DEADLINE } from "./validate.js";
 
 const SPECIAL_USES = ["inbox", "drafts", "sent", "trash", "templates", "archives", "junk", "outbox"];
@@ -21,7 +24,6 @@ const THREAD_MAX_CANDIDATES = 80;
 // conversion, so a huge message cannot make the converter do unbounded work.
 const HTML_INPUT_FACTOR = 8;
 const MAX_HTML_INPUT = 2_000_000;
-const REPLY_QUOTE_CHARS = 20_000;
 
 function randomId() {
   const b = new Uint8Array(12);
@@ -32,7 +34,8 @@ function randomId() {
 export function createMailOps({ api, now = () => Date.now() }) {
   const cursors = new Map();
   const followupTag = createFollowupTag({ api });
-  const composeReview = createComposeReview({ api, now });
+  const attachmentStage = createAttachmentStage({ now });
+  const composeReview = createComposeReview({ api, stage: attachmentStage });
 
   function sweepCursors() {
     const t = now();
@@ -80,13 +83,22 @@ export function createMailOps({ api, now = () => Date.now() }) {
     );
   }
 
+  function fromDomain(header) {
+    const address = /@([^<>\s]+)>?\s*$/.exec(String(header.author || ""));
+    return address ? address[1].toLowerCase().slice(0, 253) : null;
+  }
+
+  function classifyFast(header) {
+    return { ...summarizeHeader(header), classificationLoaded: false,
+      hasListUnsubscribe: null, listId: null, precedence: null, fromDomain: fromDomain(header) };
+  }
+
   async function classify(header) {
     const h = await headersOf(header.id);
-    const address = /@([^<>\s]+)>?\s*$/.exec(String(header.author || ""));
-    return { ...summarizeHeader(header), hasListUnsubscribe: !!h["list-unsubscribe"]?.length,
+    return { ...summarizeHeader(header), classificationLoaded: true, hasListUnsubscribe: !!h["list-unsubscribe"]?.length,
       listId: (h["list-id"] || [])[0]?.slice(0, 2000) || null,
       precedence: (h.precedence || [])[0]?.slice(0, 100) || null,
-      fromDomain: address ? address[1].toLowerCase().slice(0, 253) : null };
+      fromDomain: fromDomain(header) };
   }
 
   function pickHeaders(all) {
@@ -157,6 +169,12 @@ export function createMailOps({ api, now = () => Date.now() }) {
 
   return {
     openComposeForReview: composeReview.open,
+    updateComposeForReview: composeReview.update,
+    closeComposeForReview: composeReview.close,
+    listComposesForReview: composeReview.list,
+    beginAttachment: attachmentStage.begin,
+    chunkAttachment: attachmentStage.chunk,
+    discardAttachment: attachmentStage.discard,
     async health() {
       return { status: "ok" };
     },
@@ -213,7 +231,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
           throw new BridgeError("cursor_expired", "cursor expired or unknown; run the search again");
         }
       } else {
-        const q = { messagesPerPage: Math.max(p.limit, 25) };
+        const q = { messagesPerPage: p.limit, autoPaginationTimeout: 400 };
         if (p.query) q.fullText = p.query;
         if (p.from) q.author = p.from;
         if (p.to) q.recipients = p.to;
@@ -232,24 +250,28 @@ export function createMailOps({ api, now = () => Date.now() }) {
         }
         const first = await api.messages.query(q);
         ctx.check();
-        state = { buffer: [...(first.messages || [])], listId: first.id || null };
+        state = { buffer: [...(first.messages || [])], listId: first.id || null,
+          fast: p.fast || false, limit: p.limit };
       }
-      while (state.buffer.length < p.limit + 1 && state.listId) {
+      if (!state.buffer.length && state.listId) {
+        const next = await api.messages.continueList(state.listId);
         ctx.check();
-        const page = await api.messages.continueList(state.listId);
-        ctx.check();
-        state.buffer.push(...(page.messages || []));
-        state.listId = page.id || null;
+        state.buffer.push(...(next.messages || []));
+        state.listId = next.id || null;
       }
-      const page = state.buffer.splice(0, p.limit);
+      const page = state.buffer.splice(0, state.limit);
       let nextCursor = null;
       if (state.buffer.length || state.listId) {
         nextCursor = randomId();
         cursors.set(nextCursor, { ...state, createdAt: now() });
       }
-      const messages = await Promise.all(page.map(classify));
+      const messages = state.fast ? page.map(classifyFast) : await Promise.all(page.map(classify));
       ctx.check();
-      return { messages, nextCursor };
+      return { messages, nextCursor, complete: !nextCursor };
+    },
+
+    findRecipients(query, limit, ctx = NO_DEADLINE) {
+      return findRecipients({ api, query, limit, now, ctx });
     },
 
     async getMessage(id, maxBodyChars) {
@@ -394,22 +416,16 @@ export function createMailOps({ api, now = () => Date.now() }) {
      * Send later elsewhere in the combined add-on has send permission.
      *
      * New drafts use messages.saveMessage (Thunderbird 153+, no window).
-     * Reply drafts use compose.beginReply so Thunderbird sets In-Reply-To and
-     * References; the body (new text plus a plain-text quote we build
-     * ourselves) is passed as beginReply details, because reading or editing
-     * the compose body would need the broader "compose" permission. The
-     * compose window is closed after saving.
+     * Reply drafts use compose.beginReply so Thunderbird sets threading,
+     * identity, signature and quote. Add agent text above the body Thunderbird
+     * built, then close the compose window after saving.
      */
     async createDraft(d) {
       let saved;
       if (d.replyToMessageId) {
         const original = await getMessageHeader(d.replyToMessageId);
-        const body = await bodyText(d.replyToMessageId, REPLY_QUOTE_CHARS);
-        const date = original.date instanceof Date ? original.date : new Date(original.date);
-        const when = Number.isNaN(date.getTime()) ? "" : `On ${date.toUTCString()}, `;
         const details = {
-          isPlainText: true,
-          plainTextBody: quoteForReply(d.body, body.text.slice(0, REPLY_QUOTE_CHARS), `${when}${original.author || "the sender"} wrote:`),
+          identityId: await identityForReply(api, original),
         };
         if (d.to) details.to = d.to;
         if (d.cc) details.cc = d.cc;
@@ -417,6 +433,7 @@ export function createMailOps({ api, now = () => Date.now() }) {
         if (d.subject) details.subject = d.subject;
         const tab = await api.compose.beginReply(d.replyToMessageId, d.replyAll ? "replyToAll" : "replyToSender", details);
         try {
+          await insertAgentText(api, tab.id, d.body);
           saved = await api.compose.saveMessage(tab.id, { mode: "draft" });
         } finally {
           await api.tabs.remove(tab.id).catch(() => {});

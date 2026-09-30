@@ -29,10 +29,11 @@ export interface FakeMessage {
   headers?: Record<string, string[]>;
   ccList?: string[];
   bccList?: string[];
-  attachments?: { name: string; contentType: string; size: number; partName: string }[];
+  attachments?: { name: string; contentType: string; size: number; partName: string; bytes?: Uint8Array }[];
 }
 
-export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?: boolean; extraFolders?: FakeFolder[] } = {}) {
+export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?: boolean; extraFolders?: FakeFolder[];
+  withHtmlSignature?: boolean; withInlineLogoAttachment?: boolean; plainTextCompose?: boolean } = {}) {
   const pageSize = opts.pageSize ?? 2;
   let nextId = 1;
   let nextTab = 100;
@@ -51,6 +52,8 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     { key: "$label2", tag: "Work", color: "#ff9900", ordinal: "" },
   ];
   const composeTabs = new Map<number, Record<string, unknown>>();
+  const composeAttachments = new Map<number, Array<{ id: number; name: string; size: number; file: File }>>();
+  let nextAttachmentId = 1;
   const tabRemovedListeners = new Set<(tabId: number) => void>();
   const storage: Record<string, unknown> = {};
 
@@ -136,6 +139,8 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
 
   const api = {
     runtime: { id: "draftsafe-mcp@draftsafe.dev", sendMessage: vi.fn(async (_id: string, msg: any): Promise<any> => msg.type === "draftsafe.approval.health" ? { ok: true, ready: true } : msg.type === "draftsafe.approval.request" ? { ok: true, requestId: "r" } : { ok: true, status: "done", outcome: { status: "denied" } }) },
+    permissions: { contains: vi.fn(async () => false), request: vi.fn(async () => false) },
+    contacts: { quickSearch: vi.fn(async (_query: unknown): Promise<Array<{ properties: Record<string, string>; remote?: boolean }>> => []) },
     storage: {
       local: {
         get: vi.fn(async (key: string) => (key in storage ? { [key]: structuredClone(storage[key]) } : {})),
@@ -245,6 +250,11 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
         return parts;
       }),
       listAttachments: vi.fn(async (id: number) => messages.get(id)?.attachments ?? []),
+      getAttachmentFile: vi.fn(async (id: number, partName: string) => {
+        const item = messages.get(id)?.attachments?.find(a => a.partName === partName);
+        if (!item) throw new Error("attachment not found");
+        return new File([item.bytes ?? new Uint8Array(item.size)], item.name, { type: item.contentType });
+      }),
       getRaw: vi.fn(async (id: number) => {
         const m = messages.get(id);
         if (!m) throw new Error("not found");
@@ -274,31 +284,57 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
       beginNew: vi.fn(async (id?: number, details?: Record<string, unknown>) => {
         const tab = nextTab++;
         const from = id ? messages.get(id) : undefined;
-        const base = from
-          ? { isPlainText: true, plainTextBody: from.text ?? "", subject: from.subject, to: from.recipients, cc: from.ccList ?? [], bcc: from.bccList ?? [] }
+        const base = opts.withHtmlSignature
+          ? { isPlainText: false, body: '<html><body><div class="moz-signature"><img src="cid:logo">Arthur</div></body></html>', subject: "", to: [] }
           : { isPlainText: true, plainTextBody: "", subject: "", to: [] };
+        if (from) Object.assign(base, { subject: from.subject, to: from.recipients, cc: from.ccList ?? [], bcc: from.bccList ?? [] });
         composeTabs.set(tab, { ...base, ...(details ?? {}) });
+        composeAttachments.set(tab, opts.withInlineLogoAttachment
+          ? [{ id: nextAttachmentId++, name: "signature-logo.png", size: 1,
+            file: new File([new Uint8Array([1])], "signature-logo.png", { type: "image/png" }) }]
+          : []);
         return { id: tab, type: "messageCompose" };
       }),
-      // Like Thunderbird: details passed to beginReply replace the auto-quoted body.
+      // Like Thunderbird: a supplied body replaces the generated signature and quote.
       beginReply: vi.fn(async (id: number, _type?: string, details?: Record<string, unknown>) => {
         const m = messages.get(id)!;
         const tab = nextTab++;
+        const generated = opts.plainTextCompose
+          ? { isPlainText: true, plainTextBody: `On Alice wrote:\n> ${m.text ?? ""}` }
+          : { isPlainText: false, body: `<html><body><blockquote>${m.text ?? ""}</blockquote>${opts.withHtmlSignature ? '<div class="moz-signature"><img src="cid:logo">Arthur</div>' : ""}</body></html>` };
+        const bodyOverride = details?.plainTextBody !== undefined || details?.isPlainText === true
+          ? { isPlainText: true, plainTextBody: details?.plainTextBody ?? "" }
+          : details?.body !== undefined
+            ? { isPlainText: false, body: details.body }
+            : generated;
         composeTabs.set(tab, {
-          isPlainText: false,
-          body: `<html><body><blockquote>${m.text ?? ""}</blockquote></body></html>`,
+          ...bodyOverride,
           subject: `Re: ${m.subject}`,
           to: [m.author],
           identityId: "id1",
           inReplyTo: m.headerMessageId,
-          ...(details ?? {}),
+          ...Object.fromEntries(Object.entries(details ?? {}).filter(([key]) => !["body", "plainTextBody", "isPlainText"].includes(key))),
         });
+        composeAttachments.set(tab, opts.withInlineLogoAttachment
+          ? [{ id: nextAttachmentId++, name: "signature-logo.png", size: 1,
+            file: new File([new Uint8Array([1])], "signature-logo.png", { type: "image/png" }) }]
+          : []);
         return { id: tab, type: "messageCompose" };
       }),
       beginForward: forbidden.composeBeginForward,
       getComposeDetails: vi.fn(async (tab: number) => ({ ...composeTabs.get(tab)! })),
       setComposeDetails: vi.fn(async (tab: number, d: Record<string, unknown>) => {
         composeTabs.set(tab, { ...composeTabs.get(tab)!, ...d });
+      }),
+      listAttachments: vi.fn(async (tab: number) =>
+        (composeAttachments.get(tab) ?? []).map(({ id, name, size }) => ({ id, name, size }))),
+      addAttachment: vi.fn(async (tab: number, { file }: { file: File }) => {
+        const item = { id: nextAttachmentId++, name: file.name, size: file.size, file };
+        composeAttachments.get(tab)!.push(item);
+        return { id: item.id, name: item.name, size: item.size };
+      }),
+      removeAttachment: vi.fn(async (tab: number, id: number) => {
+        composeAttachments.set(tab, composeAttachments.get(tab)!.filter(item => item.id !== id));
       }),
       saveMessage: vi.fn(async (tab: number) => {
         const m = saveDraftFrom(composeTabs.get(tab)!);
@@ -309,6 +345,7 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     tabs: {
       remove: vi.fn(async (tab: number) => {
         composeTabs.delete(tab);
+        composeAttachments.delete(tab);
         for (const listener of tabRemovedListeners) listener(tab);
       }),
       onRemoved: { addListener: vi.fn((listener: (tabId: number) => void) => tabRemovedListeners.add(listener)) },
@@ -317,5 +354,5 @@ export function createFakeMessenger(opts: { pageSize?: number; withSaveMessage?:
     messengerUtilities: undefined as undefined | { convertToPlainText: (html: string) => Promise<string> },
   };
 
-  return { api, messages, folders, composeTabs, storage, addMessage, forbidden, root, header };
+  return { api, messages, folders, composeTabs, composeAttachments, storage, addMessage, forbidden, root, header };
 }

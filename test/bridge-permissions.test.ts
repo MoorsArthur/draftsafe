@@ -21,11 +21,11 @@ beforeAll(() => {
 
 describe("single Draftsafe release add-on", () => {
   it("uses the existing Tools ID so its local state survives upgrade", () => {
-    expect(manifest().browser_specific_settings.gecko.id).toBe("draftsafe-tools@draftsafe.dev");
+    expect(manifest().browser_specific_settings.gecko.id).toBe("draftsafe-tools@armain.be");
     expect(manifest().experiment_apis).toHaveProperty("draftsafeBridge");
     expect(manifest().permissions).toContain("compose.send");
     expect(manifest().permissions).not.toContain("messagesDelete");
-    expect(manifest().optional_permissions).toEqual(["https://*/*"]);
+    expect(manifest().optional_permissions).toEqual(["addressBooks", "https://*/*"]);
     expect(addon.has("app/background.html")).toBe(true);
     expect(addon.has("bridge/api/implementation.js")).toBe(true);
     expect(addon.has("tools/src/features/sendlater.js")).toBe(true);
@@ -47,6 +47,11 @@ describe("single Draftsafe release add-on", () => {
       .map(([name]) => name);
     expect(callers).toEqual(["tools/src/features/sendlater.js"]);
     expect(addon.get("bridge/src/bridge/routes.js")!.toString()).not.toMatch(/sendMessage|messages\.send/);
+  });
+
+  it("contains no contact write call", () => {
+    for (const [name, body] of addon) if (name.endsWith(".js"))
+      expect(body.toString("utf8"), name).not.toMatch(/(?:contacts|addressBooks)\s*\.\s*(?:create|update|delete)\s*\(/);
   });
 
   it("keeps synthetic-click instrumentation out of the release XPI", () => {

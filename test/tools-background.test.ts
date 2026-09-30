@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 import { recordApi } from "./helpers/recorder.js";
 
-const ID = "draftsafe-tools@draftsafe.dev";
+const ID = "draftsafe-tools@armain.be";
 const BASE = `moz-extension://uuid/`;
 
 async function loadTools() {

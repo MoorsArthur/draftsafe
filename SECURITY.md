@@ -1,10 +1,28 @@
 # Security model
 
-Draftsafe 0.5 ships one Thunderbird add-on and one stdio MCP server. The add-on
+Draftsafe ships one Thunderbird add-on and one stdio MCP server. The add-on
 contains a loopback bridge, approval manager, Snooze, Send later and Follow-ups.
 Agent requests reach a fixed route table. Mailbox changes require a Thunderbird
 approval click or an active one-hour trust session started by a Thunderbird click.
 Draft and follow-up requests still require their own approval click.
+
+## Updates
+
+The add-on and MCP server are separate release artifacts. Thunderbird's
+reviewed add-on channel can update the XPI after a public listing; no
+self-hosted update URL is present in the ATN-bound manifest. The MCP updater
+is opt-in and runs outside the mail process. It requires a user-pinned Ed25519
+public key, HTTPS metadata with at most three HTTPS redirects, a signed release version and
+bundle hash, an exact file allowlist, and lockfile-pinned dependency install
+with lifecycle scripts disabled. It receives no bridge token. Failed checks
+leave the active server unchanged and the previous version is kept for
+rollback. The MCP checks bridge protocol once per Thunderbird connection;
+0.6.x without an explicit protocol field is treated as protocol 1.
+
+A malicious signing key holder, compromised dependency pinned by the signed
+lockfile, or a compromised add-on build can still run code with the authority
+of the respective process. Release signing, source review, isolated smoke
+tests and Thunderbird review remain required before publishing an update.
 
 ## Authority and limits
 
@@ -25,15 +43,42 @@ Thunderbird composer, but it has no send parameter or send call. The user must
 click Thunderbird's Send button to attempt delivery. `messagesDelete` is absent, so permanent deletion
 is not supported. The add-on can move mail to Trash after approval.
 
-The compose route accepts either an explicit new-message recipient list and
-subject, or a reply message ID, plus a plain-text body. It rejects HTML, Bcc,
-attachments, file paths, raw headers and send flags. New recipients and the
-subject are validated before a window opens. For a reply, Thunderbird sets
-threading and the add-on selects an identity from the message's account. One
-agent-prepared composer may be open at a time and no more than twelve may open
-per rolling hour. A failed or ambiguous window-open call is not retried
-automatically. An in-memory guard refuses further opens when Thunderbird may
-already have opened a window. User-started trust cannot send or skip review.
+Recipient lookup reads at most three pages and 300 Sent headers from the last
+year. It can query local contacts only after a user click grants the optional
+`addressBooks` permission. Thunderbird's permission also covers contact
+mutation, but Draftsafe exposes only a read route and calls no contact-write
+API. Remote address books are excluded. Results report ambiguous matches and
+bounded-search truncation; the agent must confirm the exact address.
+
+Draftsafe uses the existing `compose` permission to read and update the
+generated compose body, and to add, list and remove attachments. Agent text
+stays above the identity signature and reply quote. No new Thunderbird
+permission or send method was added for this feature.
+
+The compose route accepts a new-message recipient list and subject or a reply
+message ID, plus plain-text body and optional attachments. It rejects HTML,
+Bcc, raw headers and send flags. New recipients and subject are validated
+before a window opens. Replies keep Thunderbird's recipients and threading.
+There is no fixed hourly or simultaneous compose count. Updates and closes
+address only an agent-created tab and compare its
+last confirmed body, fields and attachment list before changing anything. If
+the user edits it, the operation fails with a conflict. Only agent-added
+attachments may be removed by an agent. Ambiguous window or update results
+are not retried automatically and block further agent compose operations
+until the add-on restarts. User-started trust cannot send or skip review.
+The MCP batch tool prepares 2 to 20 distinct composers through the same
+validated open route, one at a time. It reports confirmed tab IDs and a
+partial result on failure; it never retries an uncertain open or sends mail.
+
+Local files are accepted only as absolute regular paths below Downloads,
+Documents, Desktop or explicitly configured `DRAFTSAFE_ATTACHMENT_ROOTS`.
+The MCP process checks canonical containment, refuses symlinks and hidden or
+secret-looking names, and checks the open file's identity and size. Existing
+mail attachments are fetched by Thunderbird from a message ID and part name.
+Up to 100 files, 10 MiB each and 25 MiB total are the limits. Authenticated bridge
+staging accepts ordered 128 KiB chunks, reserves at most 25 MiB and expires
+after five minutes; bytes are consumed once or discarded. It returns no file
+content in MCP results. The user must inspect each attachment before Send.
 Thunderbird's native composer remains editable by the user, and the MCP
 result never claims that a message was delivered. Other desktop automation
 outside Draftsafe could still click Thunderbird's Send button.
@@ -123,8 +168,8 @@ address is active. Live unsubscribe requests are mocked in tests.
 The socket binds `127.0.0.1` on a random port with a new 32-byte bearer token
 each startup. Exact Host allowlist, Origin/Referer rejection, JSON POST only,
 duplicate-header rejection and no CORS guard the HTTP endpoint. Limits are
-8 KiB headers, 256 KiB body, 48 headers, 8 connections, 4 in-flight
-operations, 10 seconds to read requests, 4 MiB responses and 15 seconds to
+8 KiB headers, 256 KiB body, 48 headers, 8 connections, 4 ordinary in-flight
+operations, one search and two reserved health checks, 10 seconds to read requests, 4 MiB responses and 15 seconds to
 write responses. Reads have an 80-second route budget and a 90-second MCP
 deadline. Underlying Thunderbird work may continue after a timeout; its
 in-flight permit remains held until it settles.
@@ -157,4 +202,7 @@ synthetic-click refusal, no SMTP connection from agent calls, one SMTP
 connection after a native Send click to a local rejecting trap, and graceful
 shutdown. An earlier interactive Xvfb run was stopped after desktop focus
 switching was reported; whether the test window caused it is unconfirmed.
-The installed Snap build and live profile have not been tested with 0.5.0.
+The combined 0.7.0 build is installed in the personal Snap Thunderbird
+profile and live `check_connection` reported a healthy bridge. The 0.7.1
+release candidate still needs isolated Thunderbird smoke and real-profile
+verification before publication.

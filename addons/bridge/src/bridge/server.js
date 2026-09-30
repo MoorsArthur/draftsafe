@@ -11,9 +11,10 @@
 // Body size is already capped by the experiment before we see it.
 //
 // Resource bounds (independent of sockets, which the experiment bounds):
-//   - at most MAX_IN_FLIGHT route handlers run at once; a permit is held until
+//   - at most MAX_IN_FLIGHT ordinary handlers, MAX_SEARCH_IN_FLIGHT searches,
+//     and MAX_HEALTH_IN_FLIGHT health checks run at once; a permit is held until
 //     the handler's promise settles, not until the socket times out, so
-//     timed-out requests cannot pile up work;
+//     timed-out requests cannot pile up work or hide bridge health;
 //   - each handler gets a deadline and stops between steps once it passes;
 //   - responses larger than MAX_RESPONSE_BYTES are replaced by an error.
 // Internal errors are reported with a fixed text: exception messages can
@@ -23,6 +24,8 @@ import { allowedHosts, timingSafeEqual } from "./security.js";
 import { BridgeError, createDeadline } from "./validate.js";
 
 export const MAX_IN_FLIGHT = 4;
+export const MAX_SEARCH_IN_FLIGHT = 1;
+export const MAX_HEALTH_IN_FLIGHT = 2;
 export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // keep equal to framing.js LIMITS.maxResponseBytes
 export const HANDLER_BUDGET_MS = 80 * 1000; // read-operation budget; approval relays have an eleven-minute budget
 
@@ -62,6 +65,8 @@ function decodeBody(binary) {
  */
 export function createRequestHandler({ getSecrets, routes, now = () => Date.now() }) {
   let inFlight = 0;
+  let searchesInFlight = 0;
+  let healthInFlight = 0;
 
   function respond(payload) {
     const body = JSON.stringify(payload);
@@ -110,16 +115,27 @@ export function createRequestHandler({ getSecrets, routes, now = () => Date.now(
       return fail(400, "bad_request", e instanceof BridgeError ? e.message : "body is not valid UTF-8 JSON");
     }
 
-    if (inFlight >= MAX_IN_FLIGHT) {
+    const health = name === "health";
+    const search = name === "messages.search" || name === "recipients.find";
+    if (health ? healthInFlight >= MAX_HEALTH_IN_FLIGHT : inFlight >= MAX_IN_FLIGHT) {
       return fail(503, "busy", "too many requests in progress; try again shortly");
     }
+    if (search && searchesInFlight >= MAX_SEARCH_IN_FLIGHT) {
+      return fail(503, "busy", "another mail search is running; try again shortly");
+    }
     const approval = name.startsWith("requests.") || ["messages.setTags", "messages.markRead", "followups.set", "drafts.create"].includes(name);
-    inFlight++;
+    if (health) healthInFlight++;
+    else inFlight++;
+    if (search) searchesInFlight++;
     // The HTTP response has a hard read deadline even if a Thunderbird API
     // call itself stalls. Keep the permit until that API work really settles.
     const work = Promise.resolve()
       .then(() => routes[name](params, createDeadline(approval ? 11 * 60 * 1000 : HANDLER_BUDGET_MS, now)))
-      .finally(() => { inFlight--; });
+      .finally(() => {
+        if (health) healthInFlight--;
+        else inFlight--;
+        if (search) searchesInFlight--;
+      });
     let timer;
     try {
       const result = approval ? await work : await Promise.race([

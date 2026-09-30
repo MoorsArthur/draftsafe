@@ -27,6 +27,10 @@ describe("declared surfaces", () => {
         "folders.detailed", "requests.cleanup", "requests.unsubscribe", "requests.folders", "requests.status",
         "drafts.create",
         "compose.openForReview",
+        "compose.updateForReview",
+        "compose.closeForReview",
+        "compose.listForReview",
+        "attachments.begin", "attachments.chunk", "attachments.discard",
         "followups.list",
         "followups.set",
         "health",
@@ -35,6 +39,7 @@ describe("declared surfaces", () => {
         "messages.search",
         "messages.setTags",
         "messages.thread",
+        "recipients.find",
       ].sort()
     );
   });
@@ -77,7 +82,8 @@ const PARAM_KEYS: Record<string, string[]> = {
   health: [],
   "folders.detailed": ["accountId"], "requests.cleanup": ["batches"], "requests.unsubscribe": ["items", "senders"], "requests.folders": ["changes"], "requests.status": ["requestId"],
   "accounts.list": [],
-  "messages.search": ["query", "folder", "accountId", "includeSubFolders", "from", "to", "subject", "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor"],
+  "messages.search": ["query", "folder", "accountId", "includeSubFolders", "from", "to", "subject", "dateFrom", "dateTo", "unread", "flagged", "tag", "limit", "cursor", "fast"],
+  "recipients.find": ["query", "limit"],
   "messages.get": ["messageId", "maxBodyChars"],
   "messages.thread": ["messageId", "includeBodies", "maxBodyChars"],
   "messages.setTags": ["messageId", "messageIds", "add", "remove"],
@@ -85,7 +91,13 @@ const PARAM_KEYS: Record<string, string[]> = {
   "followups.list": [],
   "followups.set": ["messageId", "done"],
   "drafts.create": ["to", "cc", "bcc", "subject", "body", "replyToMessageId", "replyAll", "identityId"],
-  "compose.openForReview": ["to", "subject", "body", "replyToMessageId", "identityId"],
+  "compose.openForReview": ["to", "subject", "body", "replyToMessageId", "identityId", "attachments", "newWindow"],
+  "compose.updateForReview": ["tabId", "body", "to", "subject", "attachments", "removeAttachmentIds"],
+  "compose.closeForReview": ["tabId"],
+  "compose.listForReview": [],
+  "attachments.begin": ["name", "size", "type"],
+  "attachments.chunk": ["token", "offset", "data"],
+  "attachments.discard": ["token"],
 };
 const SMUGGLED = ["send", "mode", "sendAt", "forward", "delete", "destination", "folderId", "trash", "move", "__proto__", "constructor"];
 const EXTRA_ROUTES = [
@@ -134,8 +146,6 @@ function forbiddenSpiesOf(fake: ReturnType<typeof createFakeMessenger>) {
     "messages.move": fake.api.messages.move,
     "messages.update": fake.api.messages.update,
     "folders.create": fake.api.folders.create,
-    "compose.setComposeDetails": fake.api.compose.setComposeDetails,
-    "compose.getComposeDetails": fake.api.compose.getComposeDetails,
   };
 }
 

@@ -27,6 +27,29 @@ export interface ToolSpec {
 const messageId = z.number().int().positive().describe("Numeric message id from search_messages or get_thread. Valid until Thunderbird restarts or the message moves.");
 const messageIds = z.array(z.number().int().positive()).min(1).max(100);
 const isoDate = z.string().max(64);
+const composeAttachment = z.discriminatedUnion("source", [
+  z.object({ source: z.literal("local"), path: z.string().min(1).max(4096).describe("Absolute path under Downloads, Documents or Desktop, or DRAFTSAFE_ATTACHMENT_ROOTS.") }).strict(),
+  z.object({ source: z.literal("message"), message_id: messageId, part_name: z.string().min(1).max(200).describe("Attachment partName from get_message.") }).strict(),
+]);
+const batchComposeMessage = z.object({
+  to: z.array(z.email().max(320)).min(1).max(20).optional(),
+  subject: z.string().min(1).max(300).optional(),
+  body: z.string().min(1).max(100_000),
+  reply_to_message_id: messageId.optional(),
+  identity_id: z.string().min(1).max(100).optional(),
+  attachments: z.array(composeAttachment).max(100).optional(),
+}).strict().superRefine((message, ctx) => {
+  if (message.body.includes("\0"))
+    ctx.addIssue({ code: "custom", message: "Body contains an invalid character." });
+  if (message.reply_to_message_id !== undefined) {
+    if (message.to !== undefined || message.subject !== undefined || message.identity_id !== undefined)
+      ctx.addIssue({ code: "custom", message: "A reply cannot override recipients, subject or identity." });
+  } else if (!message.to || !message.subject) {
+    ctx.addIssue({ code: "custom", message: "New mail needs recipients and a subject." });
+  }
+  if (message.subject && /[\r\n\x00-\x1f\x7f]/.test(message.subject))
+    ctx.addIssue({ code: "custom", message: "Subject must be a single line." });
+});
 
 function pick(args: Record<string, unknown>, map: Record<string, string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -93,15 +116,15 @@ export const TOOLS: ToolSpec[] = [
     name: "search_messages",
     title: "Search messages",
     description: desc(
-      "Search messages across all accounts or one folder. Filters combine with AND. Results are paginated: pass `cursor` from the previous page to continue. Results are not globally sorted by date."
+      "Search messages across all accounts or one folder. Filters combine with AND. Use fast:true with sender, subject, folder or date filters for a quick first page; call get_message for full classification. `query` scans body text too and may take longer. Thunderbird may return fewer than `limit` per page: follow `nextCursor` until complete:true before concluding there are no matches. Busy and timeout mean incomplete, never not found. Results are not globally sorted by date."
     ),
     inputSchema: {
-      query: z.string().max(500).optional().describe("Full-text search in subject, body and author."),
+      query: z.string().max(500).optional().describe("Full-text search in subject, body and author; slower on large mailboxes."),
       folder: z.string().max(500).optional().describe("A folder id from list_accounts, or a special folder: inbox, drafts, sent, trash, archives, junk, templates."),
       account_id: z.string().max(100).optional(),
       include_subfolders: z.boolean().optional(),
-      from: z.string().max(320).optional().describe("Author name or address."),
-      to: z.string().max(1000).optional().describe("Recipient names or addresses, semicolon separated; all must match."),
+      from: z.string().max(320).optional().describe("Author name (partial match) or complete email address."),
+      to: z.string().max(1000).optional().describe("Recipient names (partial match) or complete email addresses, semicolon separated; all must match."),
       subject: z.string().max(500).optional(),
       date_from: isoDate.optional().describe("ISO 8601 date or date-time, inclusive lower bound."),
       date_to: isoDate.optional().describe("ISO 8601 date or date-time, upper bound."),
@@ -110,6 +133,7 @@ export const TOOLS: ToolSpec[] = [
       tag: z.string().max(100).optional().describe("Tag key from list_accounts."),
       limit: z.number().int().min(1).max(100).optional().describe("Page size, default 25."),
       cursor: z.string().max(64).optional(),
+      fast: z.boolean().optional().describe("Return the first Thunderbird page without fetching classification headers; use get_message before acting on a result."),
     },
     route: "messages.search",
     readOnly: true,
@@ -130,7 +154,21 @@ export const TOOLS: ToolSpec[] = [
         tag: "tag",
         limit: "limit",
         cursor: "cursor",
+        fast: "fast",
       }),
+  },
+  {
+    name: "find_recipients",
+    title: "Find recipient addresses",
+    description: desc("Find possible recipient email addresses from the last year of Sent mail and, if enabled by a Thunderbird click, local address books. Matches may be incomplete because Sent scanning is bounded. Confirm the person and exact address with the user when several candidates match. This tool never opens a composer or sends mail."),
+    inputSchema: {
+      query: z.string().min(2).max(100).describe("Part of a person's name or email address."),
+      limit: z.number().int().min(1).max(20).optional().describe("Maximum suggestions, default 10."),
+    },
+    route: "recipients.find",
+    readOnly: true,
+    untrusted: true,
+    toParams: a => pick(a, { query: "query", limit: "limit" }),
   },
   {
     name: "get_message",
@@ -225,31 +263,77 @@ export const TOOLS: ToolSpec[] = [
     name: "open_compose_for_review",
     title: "Prepare an email for Thunderbird review",
     description: desc(
-      "Open one plain-text Thunderbird compose window with a new message or a threaded reply. " +
-      "The user must review From, To, subject and body, then click Thunderbird's Send button. " +
+      "Open a Thunderbird compose window with a new message or threaded reply, optional local files or existing email attachments. Thunderbird adds the configured signature and reply quote. Do not put a sign-off in the body. " +
+      "The user must review every field and attachment, then click Thunderbird's Send button. " +
       "This tool never sends and reports only awaiting_user_send, never delivery. " +
+      "Use this only for a genuinely new window. If the user asks to change an existing composer, call list_open_composes_for_review and update_compose_for_review instead. When any agent-created window is already open, new_window:true is required and must reflect the user's explicit request for a separate message. A matching composer is always refused. " +
       "For a new message provide to and subject; for a reply provide reply_to_message_id instead."
     ),
     inputSchema: {
       to: z.array(z.email().max(320)).min(1).max(20).optional(),
       subject: z.string().min(1).max(300).optional(),
-      body: z.string().min(1).max(100_000).describe("Plain-text body. No HTML, attachments or headers."),
+      body: z.string().min(1).max(100_000).describe("Plain-text input; Thunderbird keeps its configured signature. Do not add a sign-off."),
       reply_to_message_id: messageId.optional(),
       identity_id: z.string().min(1).max(100).optional().describe("Sender identity from list_accounts; new messages only."),
+      attachments: z.array(composeAttachment).max(100).optional(),
+      new_window: z.boolean().optional().describe("Set true only when the user explicitly asked for a separate additional email while another agent-prepared composer is open."),
     },
     route: "compose.openForReview",
     readOnly: false,
     untrusted: true,
     toParams: a => pick(a, {
       to: "to", subject: "subject", body: "body",
-      reply_to_message_id: "replyToMessageId", identity_id: "identityId",
+      reply_to_message_id: "replyToMessageId", identity_id: "identityId", new_window: "newWindow",
     }),
+  },
+  {
+    name: "open_composes_for_review",
+    title: "Prepare several emails for Thunderbird review",
+    description: desc("Use when the user explicitly asks for several distinct outgoing emails. One call prepares 2 to 20 native compose windows, one after another, and returns every confirmed tab ID. Each window keeps Thunderbird's signature and requires the user's own Send click. If one message fails, earlier windows remain open and the result identifies the failed index; inspect before retrying. This tool never sends."),
+    inputSchema: { messages: z.array(batchComposeMessage).min(2).max(20) },
+    route: "compose.openForReview", readOnly: false, untrusted: true,
+    toParams: () => ({}), // Handled by the MCP server, one validated bridge call per message.
+  },
+  {
+    name: "list_open_composes_for_review",
+    title: "Find agent-prepared Thunderbird emails",
+    description: desc("List still-open agent-prepared compose windows and their tab IDs, recipients, subjects and edit status. Use this before changing an existing message. A composer edited by the user cannot be overwritten by the agent."),
+    inputSchema: {}, route: "compose.listForReview", readOnly: true, untrusted: true,
+    toParams: () => ({}),
+  },
+  {
+    name: "update_compose_for_review",
+    title: "Update an agent-prepared Thunderbird email",
+    description: desc("Edit the existing agent-created composer in place. List open composers to identify it; tab_id may be omitted when exactly one is open. Never open a new window for a requested edit. Replace the agent text, optionally edit new-mail recipients/subject, and add or remove agent-added attachments. If you have edited the window, Draftsafe refuses to overwrite it. The user must review and click Send in Thunderbird."),
+    inputSchema: {
+      tab_id: z.number().int().positive().optional().describe("tabId from list_open_composes_for_review; optional when exactly one agent-prepared composer is open."),
+      body: z.string().min(1).max(100_000).describe("Full replacement agent text above the preserved signature and reply quote."),
+      to: z.array(z.email().max(320)).min(1).max(20).optional().describe("New mail only."),
+      subject: z.string().min(1).max(300).optional().describe("New mail only."),
+      attachments: z.array(composeAttachment).max(100).optional(),
+      remove_attachment_ids: z.array(z.number().int().positive()).max(100).optional().describe("Agent-added attachment IDs from the previous result."),
+    },
+    route: "compose.updateForReview", readOnly: false, untrusted: true,
+    toParams: a => pick(a, {
+      tab_id: "tabId", body: "body", to: "to", subject: "subject",
+      remove_attachment_ids: "removeAttachmentIds",
+    }),
+  },
+  {
+    name: "close_compose_for_review",
+    title: "Close an agent-prepared Thunderbird email",
+    description: desc("Close an unchanged agent-created compose window. List open composers first; tab_id may be omitted when exactly one is open. Draftsafe refuses user-created or user-edited windows. Thunderbird handles any unsaved-draft prompt. A close is reported only after Thunderbird confirms the tab was removed. This tool never sends mail."),
+    inputSchema: {
+      tab_id: z.number().int().positive().optional().describe("tabId from list_open_composes_for_review; optional when exactly one agent-prepared composer is open."),
+    },
+    route: "compose.closeForReview", readOnly: false, untrusted: true,
+    toParams: a => pick(a, { tab_id: "tabId" }),
   },
   {
     name: "create_draft",
     title: "Save a draft (never sent)",
     description: desc(
-      "Save a new plain-text draft, or a reply draft to an existing message (reply_to_message_id; the original is quoted and threading headers are set). " +
+      "Save a new plain-text draft, or a reply draft to an existing message (reply_to_message_id; Thunderbird keeps the identity signature, original quote and threading headers). Do not put a sign-off in a reply body; Thunderbird adds the configured signature. New background-saved drafts do not automatically add a signature. " +
         "The draft is saved to the Drafts folder and is NEVER sent. Replies briefly open a compose window in Thunderbird, which closes after saving."
     ),
     inputSchema: {
@@ -257,7 +341,7 @@ export const TOOLS: ToolSpec[] = [
       cc: z.array(z.string().max(320)).max(50).optional(),
       bcc: z.array(z.string().max(320)).max(50).optional(),
       subject: z.string().max(998).optional().describe("For replies, omit to keep 'Re: ...'."),
-      body: z.string().min(1).max(100_000).describe("Plain-text body."),
+      body: z.string().min(1).max(100_000).describe("Plain-text body. For replies, omit your sign-off because Thunderbird adds its configured identity signature."),
       reply_to_message_id: messageId.optional(),
       reply_all: z.boolean().optional(),
       identity_id: z.string().max(100).optional().describe("Sender identity id from list_accounts (new drafts only)."),

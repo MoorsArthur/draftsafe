@@ -4,7 +4,7 @@ import { createRoutes } from "../addons/shared/lib/mail-routes.js";
 import { createDeadline } from "../addons/shared/lib/validate.js";
 import { createFakeMessenger } from "./helpers/fake-messenger.js";
 
-function setup(opts: { withSaveMessage?: boolean } = {}) {
+function setup(opts: Parameters<typeof createFakeMessenger>[0] = {}) {
   const fake = createFakeMessenger({ pageSize: 2, ...opts });
   const ops = createMailOps({ api: fake.api });
   const routes = createRoutes({ ops, version: "t" });
@@ -36,9 +36,69 @@ describe("bridge mail operations", () => {
       cursor = r.nextCursor ?? undefined;
       pages++;
     } while (cursor && pages < 10);
-    expect(pages).toBe(3);
+    expect(pages).toBe(4);
     expect(seen).toEqual([0, 1, 2, 3, 4, 5, 6].map(i => `Invoice ${i}`));
     await expect(routes["messages.search"]({ cursor: "doesnotexist" })).rejects.toThrow(/cursor/);
+  });
+
+  it("requests only the needed Thunderbird page and does not prefetch the next page", async () => {
+    const { fake, routes } = setup();
+    for (let i = 0; i < 30; i++) fake.addMessage({ folderId: "account1://INBOX", subject: `Item ${i}` });
+    const result: any = await routes["messages.search"]({ subject: "Item", limit: 4 });
+    expect(result.messages).toHaveLength(2);
+    expect(result.nextCursor).toBeTruthy();
+    expect(fake.api.messages.query).toHaveBeenCalledWith(expect.objectContaining({ messagesPerPage: 4 }));
+    expect(fake.api.messages.continueList).not.toHaveBeenCalled(); // first results return immediately
+  });
+
+  it("returns a partial fast page promptly and defers classification until get_message", async () => {
+    const { fake, routes } = setup();
+    for (let i = 0; i < 7; i++) fake.addMessage({ folderId: "account1://INBOX", subject: `Invoice ${i}` });
+    const first: any = await routes["messages.search"]({ subject: "Invoice", limit: 4, fast: true });
+    expect(first.messages).toHaveLength(2); // Thunderbird may return before its nominal page fills.
+    expect(first.complete).toBe(false);
+    expect(first.nextCursor).toBeTruthy();
+    expect(first.messages[0]).toMatchObject({ classificationLoaded: false, hasListUnsubscribe: null });
+    expect(fake.api.messages.query).toHaveBeenCalledWith(expect.objectContaining({ messagesPerPage: 4, autoPaginationTimeout: 400 }));
+    expect(fake.api.messages.getFull).not.toHaveBeenCalled();
+    const second: any = await routes["messages.search"]({ cursor: first.nextCursor });
+    expect(second.messages[0].classificationLoaded).toBe(false);
+    expect(fake.api.messages.getFull).not.toHaveBeenCalled();
+  });
+
+  it("finds recipients from sent mail and optional contacts without picking an ambiguous person", async () => {
+    const { fake, routes } = setup({ extraFolders: [{ id: "account1://Sent", accountId: "account1",
+      name: "Sent", path: "/Sent", specialUse: ["sent"] }] });
+    fake.addMessage({ folderId: "account1://Sent", subject: "Hi", recipients: ["Alex One <alex.one@example.test>"] });
+    fake.addMessage({ folderId: "account1://Sent", subject: "Again", recipients: ["Alex One <alex.one@example.test>"] });
+    fake.api.permissions.contains.mockResolvedValue(true);
+    fake.api.contacts.quickSearch.mockResolvedValue([
+      { properties: { DisplayName: "Alex Two", PrimaryEmail: "alex.two@example.test" } },
+    ]);
+    const result: any = await routes["recipients.find"]({ query: "alex", limit: 10 });
+    expect(result.candidates.map((candidate: any) => candidate.email)).toEqual([
+      "alex.two@example.test", "alex.one@example.test",
+    ]);
+    expect(result.ambiguous).toBe(true);
+    expect(result.contactsEnabled).toBe(true);
+    expect(fake.api.contacts.quickSearch).toHaveBeenCalled();
+  });
+
+  it("does not query contacts before the Thunderbird permission is granted", async () => {
+    const { fake, routes } = setup({ extraFolders: [{ id: "account1://Sent", accountId: "account1",
+      name: "Sent", path: "/Sent", specialUse: ["sent"] }] });
+    fake.addMessage({ folderId: "account1://Sent", subject: "Hi", recipients: ["Jane <jane@example.test>"] });
+    const result: any = await routes["recipients.find"]({ query: "jane" });
+    expect(result).toMatchObject({ contactsEnabled: false, contactsSearched: false, ambiguous: false });
+    expect(result.candidates.map((candidate: any) => candidate.email)).toEqual(["jane@example.test"]);
+    expect(fake.api.contacts.quickSearch).not.toHaveBeenCalled();
+    await expect(routes["recipients.find"]({ query: " " })).rejects.toMatchObject({ code: "invalid_params" });
+  });
+
+  it("reports a completed empty search only when Thunderbird has no cursor", async () => {
+    const { routes } = setup();
+    const result: any = await routes["messages.search"]({ subject: "NoSuchSubject", fast: true });
+    expect(result).toMatchObject({ messages: [], nextCursor: null, complete: true });
   });
 
   it("resolves special folder names and maps filters", async () => {
@@ -141,24 +201,31 @@ describe("bridge mail operations", () => {
     expect(fake.composeTabs.size).toBe(0);
   });
 
-  it("creates reply drafts through beginReply details only (no compose permission needed)", async () => {
-    const { fake, routes } = setup({ withSaveMessage: true });
+  it("saves an HTML reply draft with Thunderbird's signature, quote and threading", async () => {
+    const { fake, routes } = setup({ withSaveMessage: true, withHtmlSignature: true });
     const orig = fake.addMessage({ folderId: "account1://INBOX", subject: "Question", text: "Can you?", headerMessageId: "q@x" });
     const r: any = await routes["drafts.create"]({ replyToMessageId: orig.id, body: "Yes <b>I</b> can", replyAll: true });
     expect(fake.api.compose.beginReply).toHaveBeenCalledTimes(1);
     const [id, type, details] = fake.api.compose.beginReply.mock.calls[0] as unknown as [number, string, any];
     expect([id, type]).toEqual([orig.id, "replyToAll"]);
-    expect(details.isPlainText).toBe(true);
-    expect(details.plainTextBody).toMatch(/^Yes <b>I<\/b> can\n\nOn .* wrote:\n> Can you\?\n$/);
+    expect(details).toEqual({ identityId: "id1" });
     expect(details.to).toBeUndefined();
-    // Never touched: reading or editing compose windows needs "compose".
-    expect(fake.api.compose.getComposeDetails).not.toHaveBeenCalled();
-    expect(fake.api.compose.setComposeDetails).not.toHaveBeenCalled();
+    expect(fake.api.compose.getComposeDetails).toHaveBeenCalledTimes(1);
+    expect(fake.api.compose.setComposeDetails).toHaveBeenCalledTimes(1);
     expect(fake.api.compose.saveMessage).toHaveBeenCalledWith(expect.any(Number), { mode: "draft" });
     expect(fake.api.tabs.remove).toHaveBeenCalled();
     expect(r.draft.folder.id).toBe("account1://Drafts");
     const saved = [...fake.messages.values()].find(m => m.folderId === "account1://Drafts")!;
+    expect(saved.text).toBe('<html><body><p>Yes &lt;b&gt;I&lt;/b&gt; can</p><blockquote>Can you?</blockquote><div class="moz-signature"><img src="cid:logo">Arthur</div></body></html>');
     expect(saved.headers?.["In-Reply-To"]).toEqual(["<q@x>"]);
+  });
+
+  it("saves a plain-text reply draft without a signature and keeps its quote", async () => {
+    const { fake, routes } = setup({ withSaveMessage: true, plainTextCompose: true });
+    const orig = fake.addMessage({ folderId: "account1://INBOX", subject: "Question", text: "Can you?" });
+    await routes["drafts.create"]({ replyToMessageId: orig.id, body: "Yes, I can." });
+    const saved = [...fake.messages.values()].find(m => m.folderId === "account1://Drafts")!;
+    expect(saved.text).toBe("Yes, I can.\n\nOn Alice wrote:\n> Can you?");
   });
 
   it("closes the reply compose window even when saving fails", async () => {

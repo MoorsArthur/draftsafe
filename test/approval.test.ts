@@ -16,7 +16,7 @@ const folder = (name: string, specialUse: string[] = []) => ({ id: `account1://$
 function fixture(fetchImpl?: any) {
   const fake = createFakeMessenger({ withSaveMessage: true, extraFolders: [folder("Source"), folder("Target"), folder("Empty"), folder("Junk", ["junk"])] });
   const api: any = fake.api;
-  api.runtime.id = "draftsafe-tools@draftsafe.dev";
+  api.runtime.id = "draftsafe-tools@armain.be";
   api.runtime.getURL = (p: string) => BASE + p;
   api.windows = { create: vi.fn(async () => ({ id: 55 })), update: vi.fn(async () => {}), remove: vi.fn(async () => {}) };
   api.permissions = { contains: vi.fn(async () => true), request: vi.fn(async () => true), remove: vi.fn(async () => true) };
@@ -558,6 +558,6 @@ describe("unsubscribe provenance and relay", () => {
   it("reports local approval readiness in bridge health", async () => {
     const relay = createLocalRelay({ request: async () => ({ ok: false, code: "busy" }), status: () => ({ ok: false }) });
     const routes = createRoutes({ ops: { health: async () => ({ status: "ok" }) }, version: "0.5.0", relay });
-    expect(await routes.health({})).toEqual({ status: "ok", version: "0.5.0", tools: { ready: true } });
+    expect(await routes.health({})).toEqual({ status: "ok", version: "0.5.0", protocol: 1, tools: { ready: true } });
   });
 });

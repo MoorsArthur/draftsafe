@@ -31,7 +31,7 @@ const snapCommon = join(home, "snap", "thunderbird", "common");
 const smokeBase = TB === "/snap/bin/thunderbird" ? snapCommon : join(os.tmpdir(), "draftsafe-smoke");
 const CONN = join(smokeBase, "draftsafe-smoke-mcp", "connection.json");
 const REAL_PROFILE = join(home, "snap", "thunderbird", "current", ".config", "thunderbird");
-const IDS = { addon: "draftsafe-tools@draftsafe.dev", seed: "draftsafe-smoke-seed@test.invalid" };
+const IDS = { addon: "draftsafe-tools@armain.be", seed: "draftsafe-smoke-seed@test.invalid" };
 
 const results = [];
 function check(name, ok, detail = "") {
@@ -262,7 +262,7 @@ try {
   // ------------------------------------------------------------ MCP client --
   mcp = new Client({ name: "draftsafe-smoke", version: "1" });
   await mcp.connect(
-    new StdioClientTransport({ command: process.execPath, args: [join(root, "dist", "index.js")], env: { ...process.env, DRAFTSAFE_CONNECTION_FILE: conn }, stderr: "pipe" })
+    new StdioClientTransport({ command: process.execPath, args: [join(root, "dist", "index.js")], env: { ...process.env, DRAFTSAFE_CONNECTION_FILE: conn, DRAFTSAFE_ATTACHMENT_ROOTS: profile }, stderr: "pipe" })
   );
   const unwrap = r => {
     const text = r.content[0].text;
@@ -292,7 +292,7 @@ try {
   };
 
   const { tools } = await mcp.listTools();
-  check("MCP lists sixteen read, approval and compose tools", tools.length === 16 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
+  check("MCP lists twenty-one read, approval and compose tools", tools.length === 21 && !tools.some(t => /send|delete|move|snooze|forward/.test(t.name)), tools.map(t => t.name).join(","));
 
   const accounts = await tool("list_accounts");
   const pop = accounts.accounts.find(a => a.identities.length);
@@ -304,6 +304,12 @@ try {
     return r.messages.length >= 3 ? r : null;
   }, 60_000);
   check("search_messages finds the three seeded messages", inbox.messages.length === 3, inbox.messages.map(m => m.subject).join(" | "));
+  const fast = await tool("search_messages", { subject: "Quarterly", fast: true, limit: 2 });
+  check("fast search returns the first matching page without classification headers",
+    fast.messages.some(m => m.subject === "Quarterly report" && m.classificationLoaded === false));
+  const recipients = await tool("find_recipients", { query: "someone" });
+  check("recipient lookup works without contacts permission", recipients.contactsEnabled === false &&
+    recipients.contactsSearched === false && Array.isArray(recipients.candidates));
 
   const injected = inbox.messages.find(m => m.subject === "Prompt injection test");
   const lunch = inbox.messages.find(m => m.subject === "Lunch on Friday?");
@@ -411,16 +417,28 @@ try {
     const r = await post(route, body, headers, method).catch(e => ({ status: `network error: ${e.cause?.code || e.cause?.message || e.message}` }));
     check(`HTTP ${method} /v1/${route}${Object.keys(headers).length ? " " + Object.keys(headers).join(",") : ""}${body.send || body.mode ? " +send flag" : ""} is refused`, r.status === want, `got ${r.status}`);
   }
+  const smokeAttachment = join(profile, "review-proof.txt");
+  writeFileSync(smokeAttachment, "Draftsafe attachment proof\n");
   const prepared = await tool("open_compose_for_review", {
-    to: ["recipient@example.test"], subject: "Agent-prepared smoke message", body: "Review this message in Thunderbird."
+    to: ["recipient@example.test"], subject: "Agent-prepared smoke message", body: "Review this message in Thunderbird.",
+    attachments: [{ source: "local", path: smokeAttachment }],
   });
-  check("agent-prepared email opens for review and reports sent:false", prepared.status === "awaiting_user_send" && prepared.sent === false);
+  check("agent-prepared email opens with a local attachment and reports sent:false",
+    prepared.status === "awaiting_user_send" && prepared.sent === false &&
+    prepared.attachments?.[0]?.name === "review-proof.txt");
   await sleep(1000);
   check("opening the composer made no SMTP connection", smtpConnections === 0, `${smtpConnections} connections`);
-  const secondOpen = await mcp.callTool({ name: "open_compose_for_review", arguments: {
-    to: ["recipient@example.test"], subject: "Duplicate", body: "Should be blocked."
-  } });
-  check("another agent composer is blocked while the first remains open", secondOpen.isError === true && /compose_busy/.test(secondOpen.content[0].text), secondOpen.content[0].text.slice(0, 180));
+  const openComposers = await tool("list_open_composes_for_review");
+  check("the existing composer can be found for an in-place edit",
+    openComposers.composers?.length === 1 && openComposers.composers[0].tabId === prepared.tabId &&
+    openComposers.composers[0].userEdited === false);
+  const updated = await tool("update_compose_for_review", {
+    body: "Updated in the same Thunderbird window.",
+    subject: "Updated smoke message",
+    remove_attachment_ids: [prepared.attachments[0].id],
+  });
+  check("agent can update its unedited composer and remove its attachment",
+    updated.sent === false && updated.tabId === prepared.tabId && updated.attachments.length === 0);
   // Only a real pointer click on Thunderbird's native Send button may reach
   // SMTP. This throwaway account points to the local rejecting trap.
   clickOnOurDisplay({ x: 42, y: 46 });
@@ -432,15 +450,21 @@ try {
   await sleep(1000);
   clickOnOurDisplay({ x: 400, y: 250 });
   execFileSync("xte", ["keydown Control_L", "key w", "keyup Control_L"], { env: ourDisplayEnv() });
-  await sleep(1000);
+  await waitFor("unsent compose save prompt", () =>
+    /Save Message/.test(execFileSync("xwininfo", ["-root", "-tree"], { encoding: "utf8", env: ourDisplayEnv() })), 5_000);
+  clickOnOurDisplay({ x: 222, y: 433 }); // discard the synthetic unsent message
+  await sleep(700);
   const reopened = await mcp.callTool({ name: "open_compose_for_review", arguments: {
     to: ["recipient@example.test"], subject: "Second reviewed message", body: "Second window after closing the first."
   } });
-  check("closing the first composer releases the one-window guard", reopened.isError !== true && unwrap(reopened).status === "awaiting_user_send", reopened.content[0].text.slice(0, 180));
+  check("closing the first composer permits another agent composer", reopened.isError !== true && unwrap(reopened).status === "awaiting_user_send", reopened.content[0].text.slice(0, 180));
   check("agent calls never attempt a second SMTP connection", smtpConnections === 1, `${smtpConnections} connections`);
   if (reopened.isError !== true) {
     clickOnOurDisplay({ x: 400, y: 250 });
     execFileSync("xte", ["keydown Control_L", "key w", "keyup Control_L"], { env: ourDisplayEnv() });
+    await waitFor("second unsent compose save prompt", () =>
+      /Save Message/.test(execFileSync("xwininfo", ["-root", "-tree"], { encoding: "utf8", env: ourDisplayEnv() })), 5_000);
+    clickOnOurDisplay({ x: 222, y: 433 });
     await sleep(700);
   }
   const replyAccount = (await tool("list_accounts")).accounts.find(a => a.identities.length);
