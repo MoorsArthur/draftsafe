@@ -26,6 +26,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:privacy": "node scripts/check-commit-privacy.mjs",
     "smoke": "node scripts/smoke/run-smoke.mjs",
     "build:update": "node scripts/build-update-bundle.mjs",
     "build:thunderbird-update": "node scripts/build-thunderbird-update.mjs",

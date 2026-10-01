@@ -14,6 +14,8 @@ and includes a privileged Thunderbird Experiment. A compromised add-on could
 send mail. Read the [security model](SECURITY.md) before relying on the route
 boundary.
 See the [privacy policy](PRIVACY.md) for local storage and network behavior.
+Maintainers planning to publish source should follow the
+[source publication gate](docs/source-publication.md).
 
 ## Understand Draftsafe in two minutes
 
