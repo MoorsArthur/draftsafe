@@ -177,8 +177,17 @@ was reported during an Xvfb test run.
 
 ### Updates
 
-The 0.8.1 XPI has a self-hosted update URL in a public distribution repository.
-The currently installed 0.7.0 XPI needs one manual update to join that channel.
+Draftsafe uses one `MAJOR.MINOR.PATCH` version across `package.json`, the
+Thunderbird manifest and the MCP server. Each published version gets a Git tag
+such as `v0.8.1` and a GitHub Release. `CHANGELOG.md` describes what changed.
+The [source Releases](https://github.com/MoorsArthur/draftsafe/releases) and
+[`CHANGELOG.md`](CHANGELOG.md) show version history. The
+[public download Releases](https://github.com/MoorsArthur/draftsafe-updates/releases)
+contain the XPI, MCP bundle, checksums and smoke report for each published
+version. The source repository is private during this trial.
+
+The 0.8.1 XPI has a self-hosted update URL in the public distribution repository.
+Existing 0.7.0 installations need one manual update to join that channel.
 Later versions can be picked up by Thunderbird's normal add-on update checks.
 This private-source trial is not listed on addons.thunderbird.net. The public
 XPI contains readable add-on code.
@@ -186,8 +195,8 @@ The MCP server is a separate Node process. It does not update when Thunderbird
 updates an add-on.
 
 `scripts/launch.mjs` is the stable MCP entry point. Its updater is **off by
-default**. After the first public signed release has been verified, set
-`DRAFTSAFE_AUTO_UPDATE=1`. The launcher then uses the repository's pinned
+default** unless the MCP client sets `DRAFTSAFE_AUTO_UPDATE=1`. The launcher
+then uses the repository's pinned
 [public key](updates/public-key.txt) and the public distribution repository's
 stable signed manifest URL.
 `DRAFTSAFE_UPDATE_URL` and `DRAFTSAFE_UPDATE_PUBLIC_KEY` can override those

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.1 (first public artifact candidate)
+## 0.8.1 (first public release)
 
 - Install the X11 utilities required by the isolated Thunderbird smoke test
   on the release runner. Version 0.8.0 was tagged privately but its candidate

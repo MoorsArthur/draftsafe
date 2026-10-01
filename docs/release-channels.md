@@ -10,12 +10,14 @@ code even though the full source history stays private. The old local
 
 The `draftsafe-tools@armain.be` add-on has a self-hosted `update_url` pointing
 to the stable HTTPS `thunderbird-updates.json` file in the public distribution
-repository. `npm run build:thunderbird-update` copies the built XPI to a
+repository. Version 0.8.1 is the first published artifact. `npm run build:thunderbird-update` copies the built XPI to a
 versioned filename and writes the add-on ID, version, exact release asset URL
 and SHA-256 hash into that manifest. Keep the public URL stable: installed
 copies depend on it. The already-installed 0.7.0 XPI has no self-hosted URL,
-so it must be updated once by hand to enter this channel. Later releases can
-be picked up by Thunderbird's normal add-on update checks.
+so it must be updated once by hand to enter this channel. The maintainer's
+profile has completed that step and reports add-on 0.8.1 with the expected
+update URL. Later releases can be picked up by Thunderbird's normal add-on
+update checks; an actual old-to-new automatic upgrade awaits a later release.
 
 The [ATN submission draft](atn-submission.md) is for a future public listing.
 The current private-source trial is self-distributed and has not been reviewed
@@ -34,7 +36,8 @@ already-reviewed bundle. The stable metadata URL is:
 
 `https://raw.githubusercontent.com/MoorsArthur/draftsafe-updates/main/update-manifest.json`
 
-The launcher checks that URL only when `DRAFTSAFE_AUTO_UPDATE=1`. It follows
+The launcher checks that URL only when `DRAFTSAFE_AUTO_UPDATE=1`. Codex and
+Claude Code's maintainer registrations now set this option. It follows
 at most three HTTPS redirects, checks the signature and bundle hash, and
 stages a newer server for the next MCP start. It sends no GitHub credential,
 bridge token or mailbox content. A bad or offline check leaves the current
@@ -58,6 +61,9 @@ server running; `--rollback` restores the previous version.
    the installed update URL. Test a real old-to-new Thunderbird update when a
    later version exists before claiming that behavior has been observed.
 
-The public distribution repository exposes the bundles to everyone. The
-private source repository and its commit history remain accessible only to
-authorized collaborators.
+The 0.8.1 tag workflow passed its isolated Thunderbird smoke gate. The public
+release files matched its candidate hashes, both stable manifests were fetched
+without credentials, the MCP signature and bundle hash verified, and a fresh
+live MCP process reported 21 tools and add-on 0.8.1. The public distribution
+repository exposes the bundles to everyone. The private source repository and
+its commit history remain accessible only to authorized collaborators.

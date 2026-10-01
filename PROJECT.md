@@ -2,13 +2,15 @@
 
 ## Deployment
 
-- Canonical source: `MoorsArthur/draftsafe`, currently private. PR #2 merged
-  the 0.8.0 candidate into `main`; the old `thunderbird-mcp` repository is a
+- Canonical source: `MoorsArthur/draftsafe`, private. Version 0.8.1 is tagged
+  and listed in its GitHub Releases; the old `thunderbird-mcp` checkout is a
   local historical backup.
-- One combined Draftsafe 0.7.0 add-on is installed in the maintainer's
-  Thunderbird profile. The 0.8.1 source is a release candidate.
+- One combined Draftsafe 0.8.1 add-on is active in the maintainer's
+  Thunderbird profile. Its self-hosted update URL points to the public
+  `MoorsArthur/draftsafe-updates` repository.
 - Codex and Claude use this repository's `scripts/launch.mjs` as their MCP
-  entry point. Public update files are being prepared in a separate repository.
+  entry point with the signed MCP updater enabled. The public repository has
+  versioned 0.8.1 downloads and stable update manifests.
 
 ## Architecture
 
@@ -36,8 +38,8 @@
 ## Status
 
 - State: active
-- Phase: private-source update publication
-- Now: The 0.8.1 local gate passes 284 tests and 58 isolated Thunderbird checks; the tag gate needs its X11 dependency fix reviewed.
-- Next: Merge the CI fix, pass the 0.8.1 tag gate, publish update files, then install the XPI once in the live profile.
+- Phase: private-source trial, public update channel live
+- Now: The 0.8.1 local gate passed 284 tests and 58 isolated Thunderbird checks; the tagged CI gate passed. Public XPI/MCP downloads matched CI hashes, both stable manifests verified, and a fresh live MCP launch reported 21 tools and add-on 0.8.1. The signed updater reported `current`.
+- Next: Observe a real later-version Thunderbird auto-upgrade before claiming that behavior is verified. Continue the private-source trial and review ATN submission separately.
 - Blocked by: None.
 - Updated: 2026-10-01
