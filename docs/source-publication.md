@@ -12,7 +12,7 @@ The repository's `.githooks/pre-push` runs the same check for local pushes.
 Install it in a checkout with:
 
 ```sh
-git config --local core.hooksPath .githooks
+git config --local core.hooksPath "$(pwd)/.githooks"
 ```
 
 The check applies only to commits and tags attributed to Arthur Moors, so
