@@ -44,16 +44,15 @@
 - 2026-10-01: Require the maintainer's GitHub noreply commit/tag identity in
   CI and a local push hook. Private `main` requires the passing `verify` check
   for the owner and blocks force pushes/deletion. GitHub's account email
-  privacy remains a separate setting; the available CLI token cannot change it.
+  privacy is also enabled; an anonymous profile check shows no public email.
 
 ## Status
 
 - State: active
 - Phase: private-source trial, public update channel live
 - Now: The 0.8.1 local gate passed 284 tests and 58 isolated Thunderbird checks; the tagged CI gate passed. Public XPI/MCP downloads matched CI hashes, both stable manifests verified, and a fresh live MCP launch reported 21 tools and add-on 0.8.1. The signed updater reported `current`.
-- Next: Verify GitHub account email privacy, observe a real later-version
-  Thunderbird auto-upgrade, and use a fresh audited repo for any public source
-  release. A live bridge check awaits Thunderbird being open.
-- Blocked by: GitHub account email privacy must be enabled in Settings → Emails
-  before another web PR merge or public source publication.
+- Next: Verify the noreply identity on the next GitHub web merge, observe a
+  real later-version Thunderbird auto-upgrade, and use a fresh audited repo
+  for any public source release. A live bridge check awaits Thunderbird being open.
+- Blocked by: None.
 - Updated: 2026-10-01
