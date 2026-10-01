@@ -12,10 +12,12 @@
   entry point with the signed MCP updater enabled. The public repository has
   versioned 0.8.1 downloads and stable update manifests.
 - The 2026-10-01 release audit found no credential or private home path in
-  either reachable Git history or the published update files. Five commits
-  on private source `main` use a student-domain author email; review that
-  metadata before making the source repository public. A history rewrite
-  needs Arthur's explicit approval.
+  either reachable Git history or the published update files. Arthur approved
+  a history rewrite. All nine private source branch/tag refs on GitHub were
+  rewritten and verified against a private backup; the reachable history now
+  has no student-domain commit or tag email. Six read-only GitHub PR refs and
+  cached SHA views can still retain the old metadata, so this repository must
+  stay private. Publish future source from a fresh audited repository.
 
 ## Architecture
 
@@ -39,12 +41,18 @@
 - 2026-10-01: Keep full source and history private while publishing signed
   versioned update artifacts publicly; use a self-hosted XPI update manifest
   until an ATN listing is separately reviewed.
+- 2026-10-01: Require the maintainer's GitHub noreply commit/tag identity in
+  CI and a local push hook. GitHub's account email privacy remains a separate
+  setting; the available CLI token cannot change it.
 
 ## Status
 
 - State: active
 - Phase: private-source trial, public update channel live
 - Now: The 0.8.1 local gate passed 284 tests and 58 isolated Thunderbird checks; the tagged CI gate passed. Public XPI/MCP downloads matched CI hashes, both stable manifests verified, and a fresh live MCP launch reported 21 tools and add-on 0.8.1. The signed updater reported `current`.
-- Next: Observe a real later-version Thunderbird auto-upgrade, and review the historical author metadata before any public source release or ATN submission.
-- Blocked by: None.
+- Next: Verify GitHub account email privacy, observe a real later-version
+  Thunderbird auto-upgrade, and use a fresh audited repo for any public source
+  release. A live bridge check awaits Thunderbird being open.
+- Blocked by: GitHub account email privacy must be enabled in Settings → Emails
+  before another web PR merge or public source publication.
 - Updated: 2026-10-01

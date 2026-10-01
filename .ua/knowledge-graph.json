@@ -11,6 +11,7 @@
       "markdown",
       "txt",
       "typescript",
+      "unknown",
       "yaml"
     ],
     "frameworks": [
@@ -20,10 +21,23 @@
       "GitHub Actions"
     ],
     "description": "Read local Thunderbird mail and request mailbox changes with trusted-click approval. No agent send capability.",
-    "analyzedAt": "2026-09-30T23:18:03.463Z",
-    "gitCommitHash": "6645114601f6cae8d15be7bcd2ec5c81a590014e"
+    "analyzedAt": "2026-10-01T00:53:55.480Z",
+    "gitCommitHash": "a7a09d029bfea6b71b888488445e97471d1247c9"
   },
   "nodes": [
+    {
+      "id": "file:.githooks/pre-push",
+      "type": "file",
+      "name": "pre-push",
+      "filePath": ".githooks/pre-push",
+      "summary": "Implements pre-push behavior in Draftsafe.",
+      "tags": [
+        "documentation",
+        "project",
+        "draftsafe"
+      ],
+      "complexity": "simple"
+    },
     {
       "id": "pipeline:.github/workflows/ci.yml",
       "type": "pipeline",
@@ -3391,6 +3405,19 @@
       "complexity": "moderate"
     },
     {
+      "id": "document:docs/source-publication.md",
+      "type": "document",
+      "name": "source-publication.md",
+      "filePath": "docs/source-publication.md",
+      "summary": "Documentation for source-publication.md and the Draftsafe project.",
+      "tags": [
+        "documentation",
+        "project",
+        "draftsafe"
+      ],
+      "complexity": "simple"
+    },
+    {
       "id": "document:docs/understand-anything.md",
       "type": "document",
       "name": "understand-anything.md",
@@ -3909,6 +3936,19 @@
         "build-system",
         "release",
         "function"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:scripts/check-commit-privacy.mjs",
+      "type": "file",
+      "name": "check-commit-privacy.mjs",
+      "filePath": "scripts/check-commit-privacy.mjs",
+      "summary": "Build or maintenance command for check-commit-privacy.mjs.",
+      "tags": [
+        "build-system",
+        "release",
+        "maintenance"
       ],
       "complexity": "simple"
     },
@@ -4470,6 +4510,36 @@
         "test",
         "verification",
         "draftsafe"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:test/check-commit-privacy.test.ts",
+      "type": "file",
+      "name": "check-commit-privacy.test.ts",
+      "filePath": "test/check-commit-privacy.test.ts",
+      "summary": "Tests check-commit-privacy behavior and its expected security or integration boundary.",
+      "tags": [
+        "test",
+        "verification",
+        "draftsafe"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/check-commit-privacy.test.ts:git",
+      "type": "function",
+      "name": "git",
+      "filePath": "test/check-commit-privacy.test.ts",
+      "lineRange": [
+        10,
+        22
+      ],
+      "summary": "git implements part of check-commit-privacy behavior.",
+      "tags": [
+        "test",
+        "verification",
+        "function"
       ],
       "complexity": "simple"
     },
@@ -8204,6 +8274,13 @@
       "weight": 1
     },
     {
+      "source": "file:test/check-commit-privacy.test.ts",
+      "target": "function:test/check-commit-privacy.test.ts:git",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
       "source": "file:test/compose-review.test.ts",
       "target": "file:addons/shared/lib/mail-ops.js",
       "type": "imports",
@@ -9103,6 +9180,7 @@
         "function:scripts/build-xpi.mjs:addonEntries",
         "function:scripts/build-xpi.mjs:zip",
         "function:scripts/build-xpi.mjs:buildXpis",
+        "file:scripts/check-commit-privacy.mjs",
         "file:scripts/launch.mjs",
         "file:scripts/prepare-release.mjs",
         "file:scripts/sign-update.mjs",
@@ -9139,6 +9217,7 @@
       "name": "Tests, configuration and docs",
       "description": "Behavior tests, CI, project configuration and written guidance.",
       "nodeIds": [
+        "file:.githooks/pre-push",
         "pipeline:.github/workflows/ci.yml",
         "pipeline:.github/workflows/release-candidate.yml",
         "document:AGENTS.md",
@@ -9150,6 +9229,7 @@
         "document:SECURITY.md",
         "document:docs/atn-submission.md",
         "document:docs/release-channels.md",
+        "document:docs/source-publication.md",
         "document:docs/understand-anything.md",
         "config:package.json",
         "file:test/approval.test.ts",
@@ -9160,6 +9240,8 @@
         "file:test/bridge-server.test.ts",
         "function:test/bridge-server.test.ts:request",
         "file:test/bridge-startup.test.ts",
+        "file:test/check-commit-privacy.test.ts",
+        "function:test/check-commit-privacy.test.ts:git",
         "file:test/compose-review.test.ts",
         "file:test/experiment.test.ts",
         "function:test/experiment.test.ts:harness",

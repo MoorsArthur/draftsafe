@@ -1,26 +1,36 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "6645114601f6cae8d15be7bcd2ec5c81a590014e",
-  "generatedAt": "2026-09-30T23:18:03.776Z",
+  "gitCommitHash": "a7a09d029bfea6b71b888488445e97471d1247c9",
+  "generatedAt": "2026-10-01T00:53:55.782Z",
   "files": {
-    ".github/workflows/ci.yml": {
-      "filePath": ".github/workflows/ci.yml",
-      "contentHash": "7f002ac99fd8a6d97a9ea28b3ac809ba17cddf7429914a2eeba35b727c0d9cdb",
+    ".githooks/pre-push": {
+      "filePath": ".githooks/pre-push",
+      "contentHash": "1bb3d61e294bc3e673cbfcac7c7f75ba2169473bfce65d3da02b4f47791e4ab9",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 23,
+      "totalLines": 4,
+      "hasStructuralAnalysis": false
+    },
+    ".github/workflows/ci.yml": {
+      "filePath": ".github/workflows/ci.yml",
+      "contentHash": "f66fe1ee6e972b0bf56e653dcc0b0b806f454079027a8e937d06c2f8929baf4f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 27,
       "hasStructuralAnalysis": false
     },
     ".github/workflows/release-candidate.yml": {
       "filePath": ".github/workflows/release-candidate.yml",
-      "contentHash": "600f213eb3b02dcffe8cf7f92265bcba8ad5e0a734adc6d633351cfae1557b31",
+      "contentHash": "6bc9129ab529b77861875fcf59cb93ed76df8a54842775b0f8551687ffcdc5b6",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 59,
+      "totalLines": 63,
       "hasStructuralAnalysis": false
     },
     "AGENTS.md": {
@@ -35,7 +45,7 @@
     },
     "CHANGELOG.md": {
       "filePath": "CHANGELOG.md",
-      "contentHash": "f2876cf78adef4656a3bb8449c2612545eeba228ffc2d4bf008be2e6937beaaf",
+      "contentHash": "619a71a664cb6f66cc648e48ed51c5ca98fe96193baaca2a8082833033d2cc59",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65,22 +75,22 @@
     },
     "PROJECT.md": {
       "filePath": "PROJECT.md",
-      "contentHash": "a0058ca7bd4e792d60dd7fb24fc96e4729827d29ed3af3d7e31d2c08fdbf85aa",
+      "contentHash": "99159bf3e01e835495f5a43db499e017792bd0498cc7b24614ddfc1bf0dd60d0",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 44,
+      "totalLines": 59,
       "hasStructuralAnalysis": false
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "f193b91b00e78c1308b97e2512778f12d545550e6f3440979bc9fe77a97bc82c",
+      "contentHash": "2a9c726a4fa7f3f698c57e6b15a9ac1371558efedc4f43a14b003c77959bf6fe",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 438,
+      "totalLines": 449,
       "hasStructuralAnalysis": false
     },
     "SECURITY.md": {
@@ -3196,12 +3206,22 @@
     },
     "docs/release-channels.md": {
       "filePath": "docs/release-channels.md",
-      "contentHash": "f6cf7c31f85bb88ce7fd4e269b604b34aac5a3a97f24b098f175e3424df530db",
+      "contentHash": "e50b4ebe0cd8fbf17f3cd53d02d9f15482968057f1d90250226ed44c0f1f5b6b",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 64,
+      "totalLines": 70,
+      "hasStructuralAnalysis": false
+    },
+    "docs/source-publication.md": {
+      "filePath": "docs/source-publication.md",
+      "contentHash": "9a43d6e4c0da43f9b03c9a5b106210f2f2a65a2b401981295eaf45f6a502d85a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 51,
       "hasStructuralAnalysis": false
     },
     "docs/understand-anything.md": {
@@ -3715,12 +3735,12 @@
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "cd689f653b515359ddc7a5029d036c304a15e9e23943639ec510fbb018d35689",
+      "contentHash": "a87a26943017b40e239f0ea98e82c9a3d9679575806ba367901d21602b8c6d44",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 45,
+      "totalLines": 46,
       "hasStructuralAnalysis": false
     },
     "scripts/bootstrap-release-key.mjs": {
@@ -3951,6 +3971,43 @@
         "buildXpis"
       ],
       "totalLines": 172,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/check-commit-privacy.mjs": {
+      "filePath": "scripts/check-commit-privacy.mjs",
+      "contentHash": "612521098aac189990b2b0d2b624bdab8045dcf9426d26a1e764f3fd740373a9",
+      "functions": [
+        {
+          "name": "git",
+          "params": [
+            "...args"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "checkIdentity",
+          "params": [
+            "ref",
+            "role",
+            "name",
+            "email"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFileSync"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 50,
       "hasStructuralAnalysis": true
     },
     "scripts/launch.mjs": {
@@ -4978,6 +5035,69 @@
       ],
       "exports": [],
       "totalLines": 28,
+      "hasStructuralAnalysis": true
+    },
+    "test/check-commit-privacy.test.ts": {
+      "filePath": "test/check-commit-privacy.test.ts",
+      "contentHash": "c18792282e03e9326afd9e710aa931f7219e1b25cecbd7efea7895ed738fb723",
+      "functions": [
+        {
+          "name": "git",
+          "params": [
+            "args",
+            "name",
+            "email"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "check",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFileSync",
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "mkdtempSync",
+            "rmSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "join"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "beforeEach",
+            "expect",
+            "test"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 55,
       "hasStructuralAnalysis": true
     },
     "test/compose-review.test.ts": {
