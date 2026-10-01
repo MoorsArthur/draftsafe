@@ -11,6 +11,11 @@
 - Codex and Claude use this repository's `scripts/launch.mjs` as their MCP
   entry point with the signed MCP updater enabled. The public repository has
   versioned 0.8.1 downloads and stable update manifests.
+- The 2026-10-01 release audit found no credential or private home path in
+  either reachable Git history or the published update files. Five commits
+  on private source `main` use a student-domain author email; review that
+  metadata before making the source repository public. A history rewrite
+  needs Arthur's explicit approval.
 
 ## Architecture
 
@@ -40,6 +45,6 @@
 - State: active
 - Phase: private-source trial, public update channel live
 - Now: The 0.8.1 local gate passed 284 tests and 58 isolated Thunderbird checks; the tagged CI gate passed. Public XPI/MCP downloads matched CI hashes, both stable manifests verified, and a fresh live MCP launch reported 21 tools and add-on 0.8.1. The signed updater reported `current`.
-- Next: Observe a real later-version Thunderbird auto-upgrade before claiming that behavior is verified. Continue the private-source trial and review ATN submission separately.
+- Next: Observe a real later-version Thunderbird auto-upgrade, and review the historical author metadata before any public source release or ATN submission.
 - Blocked by: None.
 - Updated: 2026-10-01
