@@ -18,8 +18,10 @@ git config --local core.hooksPath "$(pwd)/.githooks"
 The check applies only to commits and tags attributed to Arthur Moors, so
 outside contributors can choose their own Git identity. A contributor who
 wants a private address should configure a GitHub noreply address before
-committing. A local hook can be bypassed, and GitHub's web merge identity is
-controlled by the account's email settings. The maintainer must keep **Keep my
+committing. The private source's `main` branch requires the `verify` CI check
+for its owner and rejects force pushes. A local hook can be bypassed, and
+GitHub's web merge identity is controlled by the account's email settings.
+The maintainer must keep **Keep my
 email addresses private** and **Block command line pushes that expose my email**
 enabled under GitHub Settings → Emails. Before merging a PR through GitHub,
 verify that the proposed merge commit uses the noreply address. CI should

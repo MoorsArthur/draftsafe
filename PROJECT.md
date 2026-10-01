@@ -42,8 +42,9 @@
   versioned update artifacts publicly; use a self-hosted XPI update manifest
   until an ATN listing is separately reviewed.
 - 2026-10-01: Require the maintainer's GitHub noreply commit/tag identity in
-  CI and a local push hook. GitHub's account email privacy remains a separate
-  setting; the available CLI token cannot change it.
+  CI and a local push hook. Private `main` requires the passing `verify` check
+  for the owner and blocks force pushes/deletion. GitHub's account email
+  privacy remains a separate setting; the available CLI token cannot change it.
 
 ## Status
 

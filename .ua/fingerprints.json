@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "4763c803cfbf933a14afd9127907385604b93cec",
-  "generatedAt": "2026-10-01T00:54:46.203Z",
+  "gitCommitHash": "1ea3a69edf4ff9d831c55a462b93132041ad22eb",
+  "generatedAt": "2026-10-01T00:58:03.914Z",
   "files": {
     ".githooks/pre-push": {
       "filePath": ".githooks/pre-push",
@@ -75,12 +75,12 @@
     },
     "PROJECT.md": {
       "filePath": "PROJECT.md",
-      "contentHash": "99159bf3e01e835495f5a43db499e017792bd0498cc7b24614ddfc1bf0dd60d0",
+      "contentHash": "2c43caa0a7fd92274a8d187fa3adb1ce2b63d0ad50012649684ac89487d65baf",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 59,
+      "totalLines": 60,
       "hasStructuralAnalysis": false
     },
     "README.md": {
@@ -3216,12 +3216,12 @@
     },
     "docs/source-publication.md": {
       "filePath": "docs/source-publication.md",
-      "contentHash": "9466799ee894131e3fdebd4800b98b8468912ba89600432e6d737860fde97aa5",
+      "contentHash": "2e281c8e58f27a61fd336d99bc0a35854c06ac2a38afa63b148e37cd13ebcdd3",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 51,
+      "totalLines": 53,
       "hasStructuralAnalysis": false
     },
     "docs/understand-anything.md": {
