@@ -2,22 +2,19 @@
 
 ## Deployment
 
-- Canonical source: `MoorsArthur/draftsafe`, private. Version 0.8.1 is tagged
-  and listed in its GitHub Releases; the old `thunderbird-mcp` checkout is a
-  local historical backup.
+- Canonical source: public `MoorsArthur/draftsafe`. Version 0.8.1 is tagged
+  and listed in GitHub Releases. The former development repository remains a
+  separate private archive with its old pull-request refs.
 - One combined Draftsafe 0.8.1 add-on is active in the maintainer's
   Thunderbird profile. Its self-hosted update URL points to the public
   `MoorsArthur/draftsafe-updates` repository.
 - Codex and Claude use this repository's `scripts/launch.mjs` as their MCP
   entry point with the signed MCP updater enabled. The public repository has
   versioned 0.8.1 downloads and stable update manifests.
-- The 2026-10-01 release audit found no credential or private home path in
-  either reachable Git history or the published update files. Arthur approved
-  a history rewrite. All nine private source branch/tag refs on GitHub were
-  rewritten and verified against a private backup; the reachable history now
-  has no student-domain commit or tag email. Six read-only GitHub PR refs and
-  cached SHA views can still retain the old metadata, so this repository must
-  stay private. Publish future source from a fresh audited repository.
+- The public repository was created from audited `main` and the two release
+  tags. Its reachable history has no student-domain commit or tag email.
+  The old private archive keeps historical PR refs that were deliberately
+  excluded from the public repository.
 
 ## Architecture
 
@@ -40,19 +37,23 @@
   clients use this GitHub-connected checkout.
 - 2026-10-01: Keep full source and history private while publishing signed
   versioned update artifacts publicly; use a self-hosted XPI update manifest
-  until an ATN listing is separately reviewed.
+  until an ATN listing is separately reviewed (source privacy superseded by
+  the public-source decision below; the update channel remains unchanged).
+- 2026-10-01: Publish only audited source refs in a fresh public repository
+  under the original name. Keep the former repo private as an archive and
+  keep the public update URLs stable for installed copies.
 - 2026-10-01: Require the maintainer's GitHub noreply commit/tag identity in
-  CI and a local push hook. Private `main` requires the passing `verify` check
+  CI and a local push hook. Public `main` requires the passing `verify` check
   for the owner and blocks force pushes/deletion. GitHub's account email
   privacy is also enabled; an anonymous profile check shows no public email.
 
 ## Status
 
 - State: active
-- Phase: private-source trial, public update channel live
-- Now: The 0.8.1 local gate passed 284 tests and 58 isolated Thunderbird checks; the tagged CI gate passed. Public XPI/MCP downloads matched CI hashes, both stable manifests verified, and a fresh live MCP launch reported 21 tools and add-on 0.8.1. The signed updater reported `current`.
+- Phase: public source, public update channel live
+- Now: The 0.8.1 release gate passed 284 tests and 58 isolated Thunderbird checks; current main passes 288 tests and CI. Public XPI/MCP downloads matched CI hashes and both stable manifests verified. The add-on was verified live at 0.8.1 before the source publication; the fresh MCP exposed 21 tools while Thunderbird was closed.
 - Next: Verify the noreply identity on the next GitHub web merge, observe a
-  real later-version Thunderbird auto-upgrade, and use a fresh audited repo
-  for any public source release. A live bridge check awaits Thunderbird being open.
+  real later-version Thunderbird auto-upgrade, and review an ATN listing
+  separately. A live bridge check awaits Thunderbird being open.
 - Blocked by: None.
 - Updated: 2026-10-01

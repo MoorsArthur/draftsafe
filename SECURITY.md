@@ -203,7 +203,7 @@ synthetic-click refusal, no SMTP connection from agent calls, one SMTP
 connection after a native Send click to a local rejecting trap, and graceful
 shutdown. An earlier interactive Xvfb run was stopped after desktop focus
 switching was reported; whether the test window caused it is unconfirmed.
-The combined 0.7.0 build is installed in the personal Snap Thunderbird
-profile and live `check_connection` reported a healthy bridge. The 0.7.1
-release candidate still needs isolated Thunderbird smoke and real-profile
-verification before publication.
+The 0.8.1 tag passed its release gate with 284 tests and 58 isolated
+Thunderbird checks. Current main passes 288 tests and CI. The maintainer's
+0.8.1 add-on previously reported a healthy live bridge; a real old-to-new
+automatic Thunderbird update awaits a later release.

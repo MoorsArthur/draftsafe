@@ -20,8 +20,8 @@ Follow-ups. No account credentials are needed by the MCP server.
 **Privacy policy:** [PRIVACY.md](../PRIVACY.md), to be hosted at a stable public
 URL before submission.
 
-**Source:** a tagged source archive supplied privately to Thunderbird review
-while `MoorsArthur/draftsafe` remains private. The tag must
+**Source:** the public `MoorsArthur/draftsafe` repository and a tagged source
+archive supplied to Thunderbird review. The tag must
 match the add-on version. `npm ci && npm run build:xpi` with Node.js 20 or newer
 builds `dist/draftsafe.xpi`. No minifier or private build dependency is used.
 The package-lock file pins JavaScript dependencies.

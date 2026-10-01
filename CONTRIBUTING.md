@@ -6,7 +6,8 @@ open an issue before making broad changes to its approval or permission model.
 ## Development
 
 Use Node.js 20 or newer and Thunderbird 140 or newer. Run `npm ci`,
-`npm run build`, `npm test` and `npm run typecheck`. The build writes one
+`npm run build`, `npm test`, `npm run typecheck` and `npm run check:privacy`.
+The build writes one
 `dist/draftsafe.xpi` and the stdio server at `dist/index.js`.
 
 The bridge has a fixed route table in `addons/bridge/src/bridge/routes.js`.
@@ -39,3 +40,5 @@ or explain why the behavior cannot be exercised outside Thunderbird. Update
 README, SECURITY and CHANGELOG when behavior, permissions or setup changes.
 Never include mailbox contents, connection tokens, personal profile files or
 credentials in issues, logs or commits.
+The privacy check requires the maintainer's GitHub noreply identity in
+commits and annotated tags; it does not restrict contributors' email choices.

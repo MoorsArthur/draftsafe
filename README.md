@@ -186,12 +186,13 @@ The [source Releases](https://github.com/MoorsArthur/draftsafe/releases) and
 [`CHANGELOG.md`](CHANGELOG.md) show version history. The
 [public download Releases](https://github.com/MoorsArthur/draftsafe-updates/releases)
 contain the XPI, MCP bundle, checksums and smoke report for each published
-version. The source repository is private during this trial.
+version. The separate download repository keeps the installed update URLs
+stable.
 
 The 0.8.1 XPI has a self-hosted update URL in the public distribution repository.
 Existing 0.7.0 installations need one manual update to join that channel.
 Later versions can be picked up by Thunderbird's normal add-on update checks.
-This private-source trial is not listed on addons.thunderbird.net. The public
+The self-distributed add-on is not listed on addons.thunderbird.net. The public
 XPI contains readable add-on code.
 The MCP server is a separate Node process. It does not update when Thunderbird
 updates an add-on.
@@ -431,11 +432,10 @@ transport and granted permissions. Synthetic clicks must fail. An SMTP trap
 must see no connection from agent calls, then exactly one after a native Send
 click on the isolated Thunderbird display. The runner refuses an existing
 Draftsafe connection file and never touches the real Thunderbird profile or
-display. The 0.5.0 build passed 55/55 checks on standalone Thunderbird 153 in an
-isolated headless session. The combined 0.7.0 add-on is installed in the
-personal Snap Thunderbird profile and its live bridge health reported tools
-ready. New release candidates still need isolated smoke and user-reviewed
-real-profile verification before publication.
+display. The 0.8.1 release passed 58 isolated Thunderbird checks. Its
+combined add-on was also verified live in the maintainer's Thunderbird before
+publication. New releases still need isolated smoke and review before their
+update manifests are published.
 
 Thunderbird's API gives no transaction or conditional move, so concurrent
 mailbox changes can cause a partial result. Search and thread lookup may be

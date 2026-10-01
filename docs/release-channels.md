@@ -1,9 +1,9 @@
 # Release channels
 
-`MoorsArthur/draftsafe` remains the private source repository. The public
+`MoorsArthur/draftsafe` is the public source repository. The separate public
 `MoorsArthur/draftsafe-updates` repository distributes only versioned XPI and
-MCP bundles, checksums and update metadata. Those bundles contain readable
-code even though the full source history stays private. The old local
+MCP bundles, checksums and update metadata. Its stable URLs are already in
+installed copies, so keep that repository online. The old local
 `thunderbird-mcp` checkout is a historical backup.
 
 ## Thunderbird add-on
@@ -20,7 +20,7 @@ update URL. Later releases can be picked up by Thunderbird's normal add-on
 update checks; an actual old-to-new automatic upgrade awaits a later release.
 
 The [ATN submission draft](atn-submission.md) is for a future public listing.
-The current private-source trial is self-distributed and has not been reviewed
+The current add-on is self-distributed and has not been reviewed
 or listed by Thunderbird Add-ons. A later move to ATN needs a tested channel
 transition; do not publish competing versions under this ID.
 
@@ -47,7 +47,7 @@ server running; `--rollback` restores the previous version.
 
 1. Run `npm run release:check` with a standalone Thunderbird binary. Review
    source, privacy copy, smoke report and public artifacts.
-2. Publish a version tag from the private source commit and compare the tag
+2. Publish a version tag from the public source commit and compare the tag
    workflow's candidate hashes with the locally reviewed XPI, MCP bundle and
    Thunderbird manifest. The workflow never publishes automatically.
 3. Sign the MCP bundle's exact public release URL and verify the signature
@@ -65,5 +65,5 @@ The 0.8.1 tag workflow passed its isolated Thunderbird smoke gate. The public
 release files matched its candidate hashes, both stable manifests were fetched
 without credentials, the MCP signature and bundle hash verified, and a fresh
 live MCP process reported 21 tools and add-on 0.8.1. The public distribution
-repository exposes the bundles to everyone. The private source repository and
-its commit history remain accessible only to authorized collaborators.
+repository exposes the bundles to everyone. The source repository is public;
+the old private development repository is retained separately as an archive.

@@ -1,7 +1,8 @@
-# Source publication gate
+# Source publication and commit identity
 
-Draftsafe's source repository is private during the trial. Public releases in
-`draftsafe-updates` contain the signed add-on and MCP bundle, not Git history.
+`MoorsArthur/draftsafe` is the public source repository. The separate
+`draftsafe-updates` repository serves signed add-on and MCP downloads at the
+stable URLs already used by installed copies.
 
 ## Commit identity
 
@@ -18,7 +19,7 @@ git config --local core.hooksPath "$(pwd)/.githooks"
 The check applies only to commits and tags attributed to Arthur Moors, so
 outside contributors can choose their own Git identity. A contributor who
 wants a private address should configure a GitHub noreply address before
-committing. The private source's `main` branch requires the `verify` CI check
+committing. The public source's `main` branch requires the `verify` CI check
 for its owner and rejects force pushes. A local hook can be bypassed, and
 GitHub's web merge identity is controlled by the account's email settings.
 The maintainer must keep **Keep my
@@ -27,24 +28,24 @@ enabled under GitHub Settings → Emails. Before merging a PR through GitHub,
 verify that the proposed merge commit uses the noreply address. CI should
 reject a bad merge commit, but a pending check is no substitute for review.
 
-## Before opening the source
+## How this source was published
 
-1. Confirm that the maintainer's GitHub profile no longer publicly lists a
-   personal address and that a test PR merge uses the noreply address.
-2. Run `npm run check:privacy` on a full clone. Audit all source refs, tags,
-   release metadata, documentation and built artifacts for credentials,
-   private paths and personal data. Review permissions and outgoing network
-   behavior before public distribution.
-3. Create a **new** public source repository from the audited commits. Keep
-   this private repository private. Its old pull-request refs and cached commit
-   views may still contain pre-rewrite author metadata even after a force push.
-4. Review the public repository and release downloads from a separate account
-   before announcing it. Keep signing material out of Git and release assets.
+The public repository was created with only audited `main`, `v0.8.0` and
+`v0.8.1` refs. The former development repository is a separate private
+archive. Its old pull-request refs and cached commit views may still contain
+pre-rewrite author metadata, so do not change that archive's visibility or
+merge obsolete branches from it into the public repository.
 
-The history rewrite changes commit and annotated tag object IDs. It does not
-change release XPI bytes, signed update manifests or the published 0.8.1
-downloads. Existing clones must fetch the new refs and reclone or reconcile
-their local history; do not merge old commits back into the cleaned repository.
+Before each public release, run `npm run check:privacy` on a full clone and
+audit source refs, tags, release metadata, documentation and built artifacts
+for credentials, private paths and personal data. Review permissions and
+outgoing network behavior. Keep signing material out of Git and release
+assets. Verify the public downloads and metadata anonymously.
+
+The pre-publication history rewrite changed commit and annotated tag object
+IDs. It did not change release XPI bytes, signed update manifests or the
+published 0.8.1 downloads. Old private clones must not push their refs to
+this public repository.
 
 GitHub's [email privacy settings](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address),
 [push blocking](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/blocking-command-line-pushes-that-expose-your-personal-email-address)
